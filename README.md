@@ -1,6 +1,6 @@
 # 图片压缩工具 (ImageMinify)
 
-![License](https://img.shields.io/github/license/moresl/ImageMinify)
+![License](https://img.shields.io/github/license/Moresll/ImageMinify)
 ![.NET](https://img.shields.io/badge/.NET-10.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![UI](https://img.shields.io/badge/UI-WPF%20%2B%20WPF--UI-blueviolet)
@@ -15,8 +15,8 @@
 
 | 版本 | 描述 | 开源地址 |
 |------|------|----------|
-| **桌面版** | 当前项目，基于 C# WPF + WPF-UI 的桌面应用 | [ImageMinify](https://github.com/Moresl/ImageMinify) |
-| **网页版** | 基于 React + FastAPI 的在线图片压缩工具 | [snapimg](https://github.com/Moresl/snapimg) |
+| **桌面版** | 当前项目，基于 C# WPF + WPF-UI 的桌面应用 | [ImageMinify](https://github.com/Moresll/ImageMinify) |
+| **网页版** | 基于 React + FastAPI 的在线图片压缩工具 | [snapimg](https://github.com/Moresll/snapimg) |
 
 ## 功能特点
 
@@ -48,13 +48,13 @@
 
 **v2.1.0** - UI 优化与图标更新
 
-从 [Releases](https://github.com/Moresl/ImageMinify/releases/tag/v2.1.0) 下载最新版本。
+从 [Releases](https://github.com/Moresll/ImageMinify/releases/tag/v2.1.0) 下载最新版本。
 
 ## 安装方法
 
 ### 方法 1：下载可执行文件
 
-1. 从 [Releases](https://github.com/Moresl/ImageMinify/releases) 页面下载最新版本
+1. 从 [Releases](https://github.com/Moresll/ImageMinify/releases) 页面下载最新版本
 2. 解压缩下载的文件
 3. 双击 `ImageMinify.exe` 运行程序
 
@@ -65,7 +65,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Moresl/ImageMinify
+git clone https://github.com/Moresll/ImageMinify
 cd ImageMinify
 
 # 构建项目

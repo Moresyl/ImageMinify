@@ -12,7 +12,7 @@
 
 这是最简单的安装方法，不需要安装 .NET SDK。
 
-1. 访问 [GitHub Releases 页面](https://github.com/Moresl/ImageMinify/releases)
+1. 访问 [GitHub Releases 页面](https://github.com/Moresll/ImageMinify/releases)
 2. 下载最新版本的压缩包
 3. 解压缩下载的文件到任意位置
 4. 双击 `ImageMinify.exe` 运行程序
@@ -32,7 +32,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Moresl/ImageMinify
+git clone https://github.com/Moresll/ImageMinify
 cd ImageMinify
 
 # 还原 NuGet 依赖
