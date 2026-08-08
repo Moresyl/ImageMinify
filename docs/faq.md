@@ -64,7 +64,7 @@ PNG 是已经压缩的格式。对于已优化过的 PNG 或包含大量不同�
 1. 重新启动应用程序
 2. 尝试处理较少的文件
 3. 检查是否有足够的磁盘空间
-4. 如果问题持续，请在 [GitHub Issues](https://github.com/Moresll/ImageMinify/issues) 报告，并提供详细的错误信息和重现步骤
+4. 如果问题持续，请在 [GitHub Issues](https://github.com/Moresyl/ImageMinify/issues) 报告，并提供详细的错误信息和重现步骤
 
 ### 设置保存在哪里？
 

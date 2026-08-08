@@ -44,7 +44,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Moresll/ImageMinify
+git clone https://github.com/Moresyl/ImageMinify
 cd ImageMinify
 
 # 还原依赖

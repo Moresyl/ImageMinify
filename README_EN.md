@@ -1,6 +1,6 @@
 # ImageMinify
 
-![License](https://img.shields.io/github/license/Moresll/ImageMinify)
+![License](https://img.shields.io/github/license/Moresyl/ImageMinify)
 ![.NET](https://img.shields.io/badge/.NET-10.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![UI](https://img.shields.io/badge/UI-WPF%20%2B%20WPF--UI-blueviolet)
@@ -15,8 +15,8 @@ This project has two versions for different use cases:
 
 | Version | Description | Repository |
 |---------|-------------|------------|
-| **Desktop** | Current project, C# WPF + WPF-UI desktop application | [ImageMinify](https://github.com/Moresll/ImageMinify) |
-| **Web** | React + FastAPI online image compression tool | [snapimg](https://github.com/Moresll/snapimg) |
+| **Desktop** | Current project, C# WPF + WPF-UI desktop application | [ImageMinify](https://github.com/Moresyl/ImageMinify) |
+| **Web** | React + FastAPI online image compression tool | [snapimg](https://github.com/Moresyl/snapimg) |
 
 ## Features
 
@@ -48,7 +48,7 @@ This project has two versions for different use cases:
 
 ### Method 1: Download Executable
 
-1. Download the latest version from the [Releases](https://github.com/Moresll/ImageMinify/releases) page
+1. Download the latest version from the [Releases](https://github.com/Moresyl/ImageMinify/releases) page
 2. Extract the downloaded file
 3. Double-click `ImageMinify.exe` to run
 
@@ -59,7 +59,7 @@ This project has two versions for different use cases:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Moresll/ImageMinify
+git clone https://github.com/Moresyl/ImageMinify
 cd ImageMinify
 
 # Build the project
