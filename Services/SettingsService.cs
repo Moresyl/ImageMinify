@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Windows;
+using ImageMinify.Helpers;
 using ImageMinify.Models;
 
 namespace ImageMinify.Services;
@@ -61,6 +62,8 @@ public sealed class SettingsService
         {
             Options = options,
             IsDarkTheme = ReadBool("IsDarkTheme"),
+            Language = ReadEnum("Language", Language.Chinese),
+            AutoCheckUpdates = ReadBool("AutoCheckUpdates", defaultValue: true),
 
             // Folders are kept even when missing at load time — a network share or an external drive
             // that is not mounted right now is still the selection the user left behind. Only files
@@ -88,6 +91,8 @@ public sealed class SettingsService
             ["Recursive"] = options.Recursive,
             ["MaxParallelism"] = options.MaxParallelism,
             ["IsDarkTheme"] = snapshot.IsDarkTheme,
+            ["Language"] = snapshot.Language.ToString(),
+            ["AutoCheckUpdates"] = snapshot.AutoCheckUpdates,
             ["SelectLastPaths"] = JsonSerializer.Serialize(snapshot.LastPaths),
         });
 

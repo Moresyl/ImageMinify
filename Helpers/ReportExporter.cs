@@ -17,12 +17,12 @@ public static class ReportExporter
     {
         var builder = new StringBuilder();
 
-        // Excel reads a bare UTF-8 CSV as the system ANSI code page and turns every Chinese heading
-        // into mojibake. A BOM is what makes it detect UTF-8 — written explicitly rather than left to
-        // the encoder, because the file is also a plain-text artefact people diff and grep.
+        // Excel reads a bare UTF-8 CSV as the system ANSI code page and turns every non-ASCII heading
+        // or path into mojibake. A BOM is what makes it detect UTF-8 — written explicitly rather than
+        // left to the encoder, because the file is also a plain-text artefact people diff and grep.
         builder.Append('﻿');
 
-        builder.AppendLine("文件名,原始路径,输出路径,原始大小(字节),压缩后大小(字节),节省(字节),压缩率(%),原始尺寸,输出尺寸,质量,状态,耗时(毫秒),错误");
+        builder.AppendLine(Strings.Get("Str.Report.Header"));
 
         foreach (var result in results)
         {
@@ -46,13 +46,14 @@ public static class ReportExporter
         }
 
         builder.AppendLine();
-        builder.Append("合计,").Append(summary.TotalFiles.ToString(CultureInfo.InvariantCulture))
-            .Append(" 个文件,已压缩 ").Append(summary.ProcessedFiles.ToString(CultureInfo.InvariantCulture))
-            .Append(",跳过 ").Append(summary.SkippedFiles.ToString(CultureInfo.InvariantCulture))
-            .Append(",失败 ").Append(summary.FailedFiles.ToString(CultureInfo.InvariantCulture))
-            .Append(",节省 ").Append(summary.BytesSaved.ToString(CultureInfo.InvariantCulture))
-            .Append(",压缩率 ").Append(summary.OverallCompressionRatio.ToString("F2", CultureInfo.InvariantCulture))
-            .AppendLine();
+        builder.AppendLine(Strings.Format(
+            "Str.Report.Total",
+            summary.TotalFiles.ToString(CultureInfo.InvariantCulture),
+            summary.ProcessedFiles.ToString(CultureInfo.InvariantCulture),
+            summary.SkippedFiles.ToString(CultureInfo.InvariantCulture),
+            summary.FailedFiles.ToString(CultureInfo.InvariantCulture),
+            summary.BytesSaved.ToString(CultureInfo.InvariantCulture),
+            summary.OverallCompressionRatio.ToString("F2", CultureInfo.InvariantCulture)));
 
         // Encoding without a second BOM: the one above is already in the text.
         await File.WriteAllTextAsync(path, builder.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), ct);
@@ -60,9 +61,9 @@ public static class ReportExporter
 
     private static string Describe(ResultState state) => state switch
     {
-        ResultState.Compressed => "已压缩",
-        ResultState.Skipped => "已跳过",
-        _ => "失败",
+        ResultState.Compressed => Strings.Get("Str.State.Compressed"),
+        ResultState.Skipped => Strings.Get("Str.State.Skipped"),
+        _ => Strings.Get("Str.State.Failed"),
     };
 
     /// <summary>

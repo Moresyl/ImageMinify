@@ -359,8 +359,11 @@ public sealed class ImageCompressorTests : IDisposable
 
         Assert.False(string.IsNullOrWhiteSpace(capabilities.JpegOptimizer));
         Assert.False(string.IsNullOrWhiteSpace(capabilities.PngQuantization));
-        Assert.False(string.IsNullOrWhiteSpace(capabilities.PngLossless));
         Assert.Equal(Environment.ProcessorCount, capabilities.ProcessorCount);
+
+        // PngLossless is empty on a machine without oxipng, so the line the panel shows is what has
+        // to be legible either way.
+        Assert.False(string.IsNullOrWhiteSpace(capabilities.PngLosslessDisplay));
     }
 
     // ==== Helpers =============================================================================

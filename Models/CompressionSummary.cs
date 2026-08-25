@@ -35,7 +35,7 @@ public record CompressionSummary
         ? $"{Elapsed.TotalMilliseconds:F0} ms"
         : Elapsed.TotalSeconds < 60
             ? $"{Elapsed.TotalSeconds:F1} s"
-            : $"{(int)Elapsed.TotalMinutes} 分 {Elapsed.Seconds} 秒";
+            : Strings.Format("Str.Elapsed.MinutesSeconds", (int)Elapsed.TotalMinutes, Elapsed.Seconds);
 
     public bool HasResults => TotalFiles > 0;
 

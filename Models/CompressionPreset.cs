@@ -1,3 +1,5 @@
+using ImageMinify.Helpers;
+
 namespace ImageMinify.Models;
 
 /// <summary>
@@ -7,12 +9,12 @@ namespace ImageMinify.Models;
 /// JPEG at quality 95 attached to an email.
 /// </summary>
 /// <param name="Key">Stable identifier, persisted in settings.</param>
-/// <param name="Name">Short label on the chip.</param>
-/// <param name="Detail">The settings, spelled out, so choosing one is not a guess.</param>
+/// <param name="NameKey">String-table key for the short label on the chip.</param>
+/// <param name="DetailKey">String-table key for the settings, spelled out, so choosing one is not a guess.</param>
 public sealed record CompressionPreset(
     string Key,
-    string Name,
-    string Detail,
+    string NameKey,
+    string DetailKey,
     string OutputFormat,
     int Quality,
     ScaleMode ScaleMode,
@@ -22,11 +24,21 @@ public sealed record CompressionPreset(
     /// <summary>The built-in presets, in the order they are shown.</summary>
     public static IReadOnlyList<CompressionPreset> All { get; } =
     [
-        new("web", "网页", "WebP · 质量 80 · 长边 1920 · 清除元数据", "webp", 80, ScaleMode.LongestEdge, 1920, true),
-        new("social", "社交媒体", "JPEG · 质量 85 · 长边 2048 · 清除元数据", "jpeg", 85, ScaleMode.LongestEdge, 2048, true),
-        new("archive", "存档", "保持原格式 · 质量 92 · 原始尺寸 · 保留元数据", "original", 92, ScaleMode.None, 0, false),
-        new("minimum", "极限压缩", "WebP · 质量 60 · 长边 1280 · 清除元数据", "webp", 60, ScaleMode.LongestEdge, 1280, true),
+        new("web", "Str.Preset.Web", "Str.Preset.Web.Detail", "webp", 80, ScaleMode.LongestEdge, 1920, true),
+        new("social", "Str.Preset.Social", "Str.Preset.Social.Detail", "jpeg", 85, ScaleMode.LongestEdge, 2048, true),
+        new("archive", "Str.Preset.Archive", "Str.Preset.Archive.Detail", "original", 92, ScaleMode.None, 0, false),
+        new("minimum", "Str.Preset.Minimum", "Str.Preset.Minimum.Detail", "webp", 60, ScaleMode.LongestEdge, 1280, true),
     ];
+
+    /// <summary>Short label on the chip.</summary>
+    /// <remarks>
+    /// Resolved on read rather than stored, so the four presets survive a language change without
+    /// being rebuilt — <see cref="Key"/> is what the settings file and the highlight both hold on to.
+    /// </remarks>
+    public string Name => Strings.Get(NameKey);
+
+    /// <summary>The settings, spelled out, so choosing one is not a guess.</summary>
+    public string Detail => Strings.Get(DetailKey);
 
     /// <summary>Applies this preset over <paramref name="options"/>, leaving output routing alone.</summary>
     public CompressionOptions ApplyTo(CompressionOptions options) => options with

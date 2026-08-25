@@ -161,7 +161,10 @@ public sealed class PngCompressorTests : IDisposable
     public void CapabilityNames_MatchWhatWasActuallyFound()
     {
         Assert.Equal(_encoder.HasImagequant ? "imagequant" : "ImageSharp", _encoder.QuantizationName);
-        Assert.Equal(_encoder.HasOxipng ? "oxipng" : "未安装", _encoder.LosslessOptimizerName);
+
+        // Empty rather than a phrase when oxipng is absent. The words for that absence are a
+        // translation, and an encoder does not get to pick a language.
+        Assert.Equal(_encoder.HasOxipng ? "oxipng" : string.Empty, _encoder.LosslessOptimizerName);
     }
 
     // ==== Helpers =============================================================================

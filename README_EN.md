@@ -28,11 +28,15 @@ This project has two versions for different use cases:
 - **Four output destinations**: Suffix, a `compressed` sub-folder, a chosen output folder (mirroring sub-directories), or overwrite in place
 - **Skip when larger**: Re-encoding an already-optimised image usually grows it — the original is kept instead by default
 - **Metadata control**: Keep, reduce (camera / date / software only), or strip EXIF, IPTC, XMP and the colour profile outright
-- **Before/after view**: Any result row opens a wipe comparison — drag anywhere on the picture to inspect the difference pixel by pixel, over a checkerboard that shows transparency
+- **Before/after view**: Any result row opens a wipe comparison — drag anywhere on the picture to inspect the difference pixel by pixel. Scroll to magnify up to 1:1 and beyond, where the picture is drawn nearest-neighbour so the ringing and blocking the encoder left are visible as they are; transparency shows over a checkerboard
 - **CSV report**: Exports original/compressed size, ratio, dimensions, quality, elapsed time and errors per file
 - **Native acceleration**: imagequant / MozJPEG / oxipng are used automatically when present, with an ImageSharp fallback when they are not
+- **Complete English and Chinese UI**: Switch language in Settings; the main view, settings, updater, dialogs, and error messages all change immediately without restarting or interrupting a run
 - **Light and dark themes**: Persisted with your choice; the UI is built from custom control templates with consistent type sizes and spacing
-- **Persistent settings**: Compression options, theme and the last file list are saved automatically
+- **Settings center**: Manage language, theme, automatic update checks, support, and diagnostics in one place
+- **One-click updates**: See the installed version, check GitHub Releases, read bilingual release notes, and download/restart into an update from inside the app
+- **Copyable diagnostics**: Error dialogs copy a redacted report with app version, OS, architecture, runtime, and exception details for issue reports
+- **Persistent settings**: Compression options, interface language, theme, automatic updates, and the last file list are saved automatically
 
 ## Tech Stack
 
@@ -140,6 +144,9 @@ ImageMinify/
 │   └── MainViewModel.cs          # Main view model
 ├── Views/                        # Views
 │   └── MainWindow.xaml(.cs)      # Main window
+├── Controls/                     # Custom-drawn controls
+│   ├── ComparisonSurface.cs      # Before/after stage (wipe, zoom, pan)
+│   └── ComparisonGeometry.cs     # Its geometry, kept unit-testable
 ├── Themes/                       # Palettes, control templates, icons
 ├── Helpers/                      # Utilities
 ├── Interop/                      # Win32 calls (window frame, etc.)

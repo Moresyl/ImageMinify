@@ -23,24 +23,29 @@ public partial class MainViewModel : ObservableObject
 
     private readonly IImageCompressor _compressor;
     private readonly SettingsService _settingsService;
+    private readonly IUpdateService _updateService;
 
     private CancellationTokenSource? _runCts;
     private CancellationTokenSource? _scanCts;
     private CancellationTokenSource? _saveCts;
+    private CancellationTokenSource? _updateCts;
     private TaskCompletionSource<bool>? _dialogCompletion;
 
     private bool _isInitializing;
     private IReadOnlyList<CompressionResult> _lastRunResults = [];
     private long _savedBytesThisRun;
 
-    public MainViewModel(IImageCompressor compressor, SettingsService settingsService)
+    private string _updateStatusKey = "Str.Update.Ready";
+    private object?[] _updateStatusArguments = [];
+
+    public MainViewModel(IImageCompressor compressor, SettingsService settingsService, IUpdateService updateService)
     {
         _compressor = compressor;
         _settingsService = settingsService;
+        _updateService = updateService;
 
         Summary = new CompressionSummary();
         EngineCapabilities = _compressor.GetCapabilities();
-        Presets = CompressionPreset.All;
 
         Sources.CollectionChanged += OnSourcesChanged;
 
@@ -62,10 +67,17 @@ public partial class MainViewModel : ObservableObject
 
         ExportReportCommand = new AsyncRelayCommand(ExportReportAsync, () => Results.Count > 0);
         ClearResultsCommand = new RelayCommand(ClearResults, () => !IsCompressing && Results.Count > 0);
-        ToggleThemeCommand = new RelayCommand(ToggleTheme);
+        OpenSettingsCommand = new RelayCommand(OpenSettings);
+        CloseSettingsCommand = new RelayCommand(CloseSettings);
+        CheckForUpdatesCommand = new AsyncRelayCommand(() => CheckForUpdatesAsync(quiet: false), CanManageUpdates);
+        InstallUpdateCommand = new AsyncRelayCommand(InstallUpdateAsync, () => CanManageUpdates() && AvailableUpdate is not null);
+        CopyDiagnosticsCommand = new AsyncRelayCommand(CopyDiagnosticsAsync);
+        OpenRepositoryCommand = new RelayCommand(() => Launch(AppInfo.RepositoryUrl));
+        ReportIssueCommand = new RelayCommand(() => Launch(AppInfo.IssuesUrl));
 
         DialogConfirmCommand = new RelayCommand(() => CloseDialog(true));
         DialogCancelCommand = new RelayCommand(() => CloseDialog(false));
+        DialogCopyCommand = new AsyncRelayCommand(CopyDialogAsync, () => CanCopyDialog);
 
         Results.CollectionChanged += (_, _) =>
         {
@@ -81,7 +93,11 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<CompressionResult> Results { get; } = [];
 
-    public IReadOnlyList<CompressionPreset> Presets { get; }
+    /// <summary>
+    /// The four preset chips. Observable so a language change can restate them; the presets
+    /// themselves never change.
+    /// </summary>
+    public ObservableCollection<CompressionPreset> Presets { get; } = [.. CompressionPreset.All];
 
     /// <summary>
     /// What this build can read, for the open dialog's filter. Taken from the engine rather than
@@ -96,8 +112,11 @@ public partial class MainViewModel : ObservableObject
 
     public Func<string, Task<string?>>? SaveReportHandler { get; set; }
 
+    /// <summary>Supplied by the window because the WPF clipboard requires the UI thread.</summary>
+    public Func<string, Task>? CopyTextHandler { get; set; }
+
     [ObservableProperty]
-    private string _sourceSummary = "拖入图片或文件夹，或点击下方按钮选择";
+    private string _sourceSummary = Strings.Get("Str.Source.Prompt");
 
     [ObservableProperty]
     private bool _isScanning;
@@ -200,7 +219,13 @@ public partial class MainViewModel : ObservableObject
     private string _dialogDetail = string.Empty;
 
     [ObservableProperty]
-    private string _dialogConfirmText = "确定";
+    private string _dialogCopyText = string.Empty;
+
+    [ObservableProperty]
+    private string _dialogCopyLabel = Strings.Get("Str.Dialog.CopyError");
+
+    [ObservableProperty]
+    private string _dialogConfirmText = Strings.Get("Str.Dialog.Ok");
 
     [ObservableProperty]
     private bool _isDialogDestructive;
@@ -227,10 +252,49 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private double _previewSplit = 0.5;
 
-    // ==== Theme =============================================================================
+    // ==== Appearance ========================================================================
 
     [ObservableProperty]
     private bool _isDarkTheme;
+
+    /// <summary>
+    /// Which of the two languages the interface is in. A flag rather than the enum because the title
+    /// bar offers one button, and a button that flips a two-state choice is the whole control.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isEnglish;
+
+    [ObservableProperty]
+    private bool _isSettingsOpen;
+
+    [ObservableProperty]
+    private bool _autoCheckUpdates = true;
+
+    [ObservableProperty]
+    private bool _isCheckingForUpdate;
+
+    [ObservableProperty]
+    private bool _isInstallingUpdate;
+
+    [ObservableProperty]
+    private int _updateProgress;
+
+    [ObservableProperty]
+    private UpdateRelease? _availableUpdate;
+
+    [ObservableProperty]
+    private string _updateStatus = Strings.Get("Str.Update.Ready");
+
+    [ObservableProperty]
+    private string _copyStatus = string.Empty;
+
+    public string CurrentVersion => AppInfo.Version;
+
+    public bool CanCopyDialog => !string.IsNullOrWhiteSpace(DialogCopyText) && CopyTextHandler is not null;
+
+    public bool HasAvailableUpdate => AvailableUpdate is not null;
+
+    public string UpdateNotes => ReleaseNotesFormatter.ForDisplay(AvailableUpdate?.Notes, Strings.Current);
 
     // ==== Commands ==========================================================================
 
@@ -262,11 +326,25 @@ public partial class MainViewModel : ObservableObject
 
     public RelayCommand ClearResultsCommand { get; }
 
-    public RelayCommand ToggleThemeCommand { get; }
+    public RelayCommand OpenSettingsCommand { get; }
+
+    public RelayCommand CloseSettingsCommand { get; }
+
+    public AsyncRelayCommand CheckForUpdatesCommand { get; }
+
+    public AsyncRelayCommand InstallUpdateCommand { get; }
+
+    public AsyncRelayCommand CopyDiagnosticsCommand { get; }
+
+    public RelayCommand OpenRepositoryCommand { get; }
+
+    public RelayCommand ReportIssueCommand { get; }
 
     public RelayCommand DialogConfirmCommand { get; }
 
     public RelayCommand DialogCancelCommand { get; }
+
+    public AsyncRelayCommand DialogCopyCommand { get; }
 
     // ==== Lifecycle =========================================================================
 
@@ -289,6 +367,8 @@ public partial class MainViewModel : ObservableObject
         Suffix = options.Suffix;
         Recursive = options.Recursive;
         IsDarkTheme = snapshot.IsDarkTheme;
+        IsEnglish = snapshot.Language == Language.English;
+        AutoCheckUpdates = snapshot.AutoCheckUpdates;
 
         Sources.Clear();
         foreach (var item in snapshot.LastPaths.Select(SourceItem.TryCreate).OfType<SourceItem>())
@@ -303,12 +383,19 @@ public partial class MainViewModel : ObservableObject
 
         QueueScan();
         RefreshCommandStates();
+
+        if (AutoCheckUpdates && _updateService.IsInstalled)
+        {
+            _updateCts = new CancellationTokenSource();
+            _ = RunAutomaticUpdateCheckAsync(_updateCts.Token);
+        }
     }
 
     /// <summary>Flushes any pending debounced save. Called as the window closes.</summary>
     public async Task ShutdownAsync()
     {
         _saveCts?.Cancel();
+        _updateCts?.Cancel();
         await _settingsService.SaveAsync(BuildSnapshot());
     }
 
@@ -383,7 +470,7 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        var folder = await SelectFolderHandler("选择图片文件夹");
+        var folder = await SelectFolderHandler(Strings.Get("Str.Picker.SourceFolder"));
         if (!string.IsNullOrWhiteSpace(folder))
         {
             AddPaths([folder]);
@@ -438,7 +525,7 @@ public partial class MainViewModel : ObservableObject
 
             if (Sources.Count == 0)
             {
-                SourceSummary = "拖入图片或文件夹，或点击下方按钮选择";
+                SourceSummary = Strings.Get("Str.Source.Prompt");
                 IsScanning = false;
                 return;
             }
@@ -475,8 +562,8 @@ public partial class MainViewModel : ObservableObject
             ct.ThrowIfCancellationRequested();
 
             SourceSummary = count == 0
-                ? "所选位置没有可压缩的图片"
-                : $"{count} 张图片 · {FileSizeFormatter.Format(bytes)}";
+                ? Strings.Get("Str.Source.None")
+                : Strings.Format("Str.Source.Count", count, FileSizeFormatter.Format(bytes));
             IsScanning = false;
         }
         catch (OperationCanceledException)
@@ -486,7 +573,7 @@ public partial class MainViewModel : ObservableObject
         catch (Exception)
         {
             IsScanning = false;
-            SourceSummary = "无法读取所选位置";
+            SourceSummary = Strings.Get("Str.Source.Unreadable");
         }
     }
 
@@ -508,7 +595,10 @@ public partial class MainViewModel : ObservableObject
 
         if (OutputMode == OutputMode.CustomFolder && string.IsNullOrWhiteSpace(OutputFolder))
         {
-            await ShowMessageAsync("需要输出文件夹", "当前输出方式为“自定义文件夹”，请先选择一个目标位置。", StatusSeverity.Warning);
+            await ShowMessageAsync(
+                Strings.Get("Str.Warn.NeedFolder.Title"),
+                Strings.Get("Str.Warn.NeedFolder.Body"),
+                StatusSeverity.Warning);
             return;
         }
 
@@ -520,7 +610,7 @@ public partial class MainViewModel : ObservableObject
         _lastRunResults = [];
         _savedBytesThisRun = 0;
         ProgressValue = 0;
-        ProgressText = "正在统计文件…";
+        ProgressText = Strings.Get("Str.Progress.Scanning");
         IsCompressing = true;
         RefreshCommandStates();
 
@@ -534,7 +624,10 @@ public partial class MainViewModel : ObservableObject
 
             if (files.Count == 0)
             {
-                await ShowMessageAsync("没有可压缩的图片", "所选文件夹中没有支持的图片格式，或其中的图片都是本工具此前的输出。", StatusSeverity.Warning);
+                await ShowMessageAsync(
+                    Strings.Get("Str.Warn.NoImages.Title"),
+                    Strings.Get("Str.Warn.NoImages.Body"),
+                    StatusSeverity.Warning);
                 return;
             }
 
@@ -563,13 +656,16 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            await ShowMessageAsync("压缩失败", ex.Message, StatusSeverity.Error);
+            await ShowExceptionAsync(
+                Strings.Get("Str.Error.Run.Title"),
+                Strings.Get("Str.Error.Run.Body"),
+                ex);
         }
         finally
         {
             IsCompressing = false;
             ProgressValue = 0;
-            ProgressText = cancelled ? "已取消" : string.Empty;
+            ProgressText = cancelled ? Strings.Get("Str.Progress.Cancelled") : string.Empty;
 
             _runCts?.Dispose();
             _runCts = null;
@@ -585,7 +681,11 @@ public partial class MainViewModel : ObservableObject
         _savedBytesThisRun += progress.Result.BytesSaved;
 
         ProgressText = _savedBytesThisRun > 0
-            ? $"{progress.Completed} / {progress.Total} · 已省 {FileSizeFormatter.Format(_savedBytesThisRun)}"
+            ? Strings.Format(
+                "Str.Progress.Running",
+                progress.Completed,
+                progress.Total,
+                FileSizeFormatter.Format(_savedBytesThisRun))
             : $"{progress.Completed} / {progress.Total}";
 
         Results.Add(progress.Result);
@@ -594,7 +694,7 @@ public partial class MainViewModel : ObservableObject
     private void Cancel()
     {
         _runCts?.Cancel();
-        ProgressText = "正在停止…";
+        ProgressText = Strings.Get("Str.Progress.Stopping");
     }
 
     /// <summary>
@@ -624,11 +724,17 @@ public partial class MainViewModel : ObservableObject
         }
 
         var severity = summary.FailedFiles > 0 ? StatusSeverity.Warning : StatusSeverity.Success;
-        var title = summary.FailedFiles > 0 ? "压缩完成，但有文件失败" : "压缩完成";
+        var title = Strings.Get(summary.FailedFiles > 0 ? "Str.Summary.Title.Partial" : "Str.Summary.Title.Done");
 
         var message = summary.ProcessedFiles == 0
-            ? "没有文件变小，原文件已全部保留。"
-            : $"{summary.ProcessedFiles} 个文件从 {summary.TotalOriginalSizeFormatted} 压缩到 {summary.TotalCompressedSizeFormatted}，节省 {summary.BytesSavedFormatted}（{summary.OverallCompressionRatioDisplay}）。";
+            ? Strings.Get("Str.Summary.NothingSmaller")
+            : Strings.Format(
+                "Str.Summary.Body",
+                summary.ProcessedFiles,
+                summary.TotalOriginalSizeFormatted,
+                summary.TotalCompressedSizeFormatted,
+                summary.BytesSavedFormatted,
+                summary.OverallCompressionRatioDisplay);
 
         var detail = BuildRunDetail(summary);
         await ShowMessageAsync(title, message, severity, detail);
@@ -636,16 +742,16 @@ public partial class MainViewModel : ObservableObject
 
     private static string BuildRunDetail(CompressionSummary summary)
     {
-        var parts = new List<string> { $"用时 {summary.ElapsedDisplay}" };
+        var parts = new List<string> { Strings.Format("Str.Summary.Elapsed", summary.ElapsedDisplay) };
 
         if (summary.SkippedFiles > 0)
         {
-            parts.Add($"{summary.SkippedFiles} 个文件压缩后反而更大，已保留原文件");
+            parts.Add(Strings.Format("Str.Summary.Skipped", summary.SkippedFiles));
         }
 
         if (summary.FailedFiles > 0)
         {
-            parts.Add($"{summary.FailedFiles} 个文件失败，详见结果列表");
+            parts.Add(Strings.Format("Str.Summary.Failed", summary.FailedFiles));
         }
 
         return string.Join(" · ", parts);
@@ -672,6 +778,8 @@ public partial class MainViewModel : ObservableObject
     {
         Options = BuildOptions(),
         IsDarkTheme = IsDarkTheme,
+        Language = IsEnglish ? Language.English : Language.Chinese,
+        AutoCheckUpdates = AutoCheckUpdates,
         LastPaths = Sources.Select(source => source.Path).ToList(),
     };
 
@@ -682,7 +790,7 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        var folder = await SelectFolderHandler("选择输出文件夹");
+        var folder = await SelectFolderHandler(Strings.Get("Str.Picker.OutputFolder"));
         if (string.IsNullOrWhiteSpace(folder))
         {
             return;
@@ -823,11 +931,18 @@ public partial class MainViewModel : ObservableObject
         {
             var results = _lastRunResults.Count > 0 ? _lastRunResults : Results.ToList();
             await ReportExporter.WriteCsvAsync(path, results, Summary);
-            await ShowMessageAsync("报告已导出", Path.GetFileName(path), StatusSeverity.Success, Path.GetDirectoryName(path) ?? string.Empty);
+            await ShowMessageAsync(
+                Strings.Get("Str.Report.Exported"),
+                Path.GetFileName(path),
+                StatusSeverity.Success,
+                Path.GetDirectoryName(path) ?? string.Empty);
         }
         catch (Exception ex)
         {
-            await ShowMessageAsync("导出失败", ex.Message, StatusSeverity.Error);
+            await ShowExceptionAsync(
+                Strings.Get("Str.Report.Failed"),
+                Strings.Get("Str.Error.Report.Body"),
+                ex);
         }
     }
 
@@ -855,11 +970,219 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // ==== Theme =============================================================================
+    // ==== Appearance ========================================================================
 
-    private void ToggleTheme()
+    private void OpenSettings()
     {
-        IsDarkTheme = !IsDarkTheme;
+        ClosePreview();
+        IsSettingsOpen = true;
+    }
+
+    private void CloseSettings() => IsSettingsOpen = false;
+
+    private bool CanManageUpdates() => !IsCheckingForUpdate && !IsInstallingUpdate;
+
+    private async Task RunAutomaticUpdateCheckAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(4), cancellationToken);
+            await CheckForUpdatesAsync(quiet: true, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Closing the window before the delayed check is expected.
+        }
+    }
+
+    private async Task CheckForUpdatesAsync(bool quiet, CancellationToken cancellationToken = default)
+    {
+        if (!CanManageUpdates())
+        {
+            return;
+        }
+
+        IsCheckingForUpdate = true;
+        SetUpdateStatus("Str.Update.Checking");
+        RefreshUpdateCommands();
+
+        try
+        {
+            if (!_updateService.IsInstalled)
+            {
+                AvailableUpdate = null;
+                SetUpdateStatus("Str.Update.NotInstalled");
+                return;
+            }
+
+            AvailableUpdate = await _updateService.CheckAsync(cancellationToken);
+            SetUpdateStatus(
+                AvailableUpdate is null ? "Str.Update.UpToDate" : "Str.Update.Available",
+                AvailableUpdate?.Version ?? CurrentVersion);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Window shutdown or an explicitly cancelled check has no UI consequence.
+        }
+        catch (Exception ex)
+        {
+            AvailableUpdate = null;
+            SetUpdateStatus("Str.Update.CheckFailed");
+            if (!quiet)
+            {
+                await ShowExceptionAsync(
+                    Strings.Get("Str.Update.CheckFailed.Title"),
+                    Strings.Get("Str.Update.CheckFailed.Body"),
+                    ex);
+            }
+        }
+        finally
+        {
+            IsCheckingForUpdate = false;
+            RefreshUpdateCommands();
+        }
+    }
+
+    private async Task InstallUpdateAsync()
+    {
+        if (!CanManageUpdates() || AvailableUpdate is not { } release)
+        {
+            return;
+        }
+
+        IsInstallingUpdate = true;
+        UpdateProgress = 0;
+        SetUpdateStatus("Str.Update.Downloading", 0);
+        RefreshUpdateCommands();
+
+        try
+        {
+            var progress = new Progress<int>(value =>
+            {
+                UpdateProgress = Math.Clamp(value, 0, 100);
+                SetUpdateStatus("Str.Update.Downloading", UpdateProgress);
+            });
+
+            await _updateService.DownloadAndApplyAsync(release, progress);
+            UpdateProgress = 100;
+            SetUpdateStatus("Str.Update.Restarting");
+        }
+        catch (Exception ex)
+        {
+            SetUpdateStatus("Str.Update.InstallFailed");
+            await ShowExceptionAsync(
+                Strings.Get("Str.Update.InstallFailed.Title"),
+                Strings.Get("Str.Update.InstallFailed.Body"),
+                ex);
+        }
+        finally
+        {
+            IsInstallingUpdate = false;
+            RefreshUpdateCommands();
+        }
+    }
+
+    private async Task CopyDiagnosticsAsync()
+    {
+        if (CopyTextHandler is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await CopyTextHandler(DiagnosticReport.Build());
+            CopyStatus = Strings.Get("Str.Settings.DiagnosticsCopied");
+        }
+        catch (Exception ex)
+        {
+            await ShowExceptionAsync(
+                Strings.Get("Str.Error.Copy.Title"),
+                Strings.Get("Str.Error.Copy.Body"),
+                ex);
+        }
+    }
+
+    private async Task CopyDialogAsync()
+    {
+        if (!CanCopyDialog || CopyTextHandler is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await CopyTextHandler(DialogCopyText);
+            DialogCopyLabel = Strings.Get("Str.Dialog.Copied");
+        }
+        catch
+        {
+            DialogCopyLabel = Strings.Get("Str.Error.Copy.Title");
+        }
+    }
+
+    private void SetUpdateStatus(string key, params object?[] arguments)
+    {
+        _updateStatusKey = key;
+        _updateStatusArguments = arguments;
+        UpdateStatus = arguments.Length == 0 ? Strings.Get(key) : Strings.Format(key, arguments);
+    }
+
+    private void RefreshUpdateCommands()
+    {
+        CheckForUpdatesCommand.NotifyCanExecuteChanged();
+        InstallUpdateCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// Puts the text this class owns into the language that has just been chosen.
+    /// </summary>
+    /// <remarks>
+    /// Everything the markup says re-reads itself, because it asks for its strings by key. What is
+    /// left is the text that was assembled in code and stored — a summary line, a status message —
+    /// and the display strings on records, which resolve when read but have nothing to announce that
+    /// they have changed. Both are handled here rather than through an event, so the one thing that
+    /// changes the language is also the one thing that repairs what the change left behind.
+    /// </remarks>
+    private void RefreshLocalizedText()
+    {
+        // Re-walks the sources rather than reformatting a remembered count: this is the code that
+        // knows all four things the line can say, and the walk is debounced and already paid for
+        // every time the list changes.
+        QueueScan();
+
+        OnPropertyChanged(nameof(Summary));
+        OnPropertyChanged(nameof(EngineCapabilities));
+        OnPropertyChanged(nameof(CurrentVersion));
+        OnPropertyChanged(nameof(UpdateNotes));
+
+        UpdateStatus = _updateStatusArguments.Length == 0
+            ? Strings.Get(_updateStatusKey)
+            : Strings.Format(_updateStatusKey, _updateStatusArguments);
+        CopyStatus = string.Empty;
+        if (CanCopyDialog)
+        {
+            DialogCopyLabel = Strings.Get("Str.Dialog.CopyError");
+        }
+
+        Restate(Presets);
+        Restate(Results);
+    }
+
+    /// <summary>Nudges every row of <paramref name="items"/> so the bindings read it again.</summary>
+    /// <remarks>
+    /// Assigning an item over itself is what raises Replace for that index. It reads like a no-op and
+    /// deliberately is not one: these records resolve their display strings when read, so the rows
+    /// already hold the right words and only the notification is missing. Clearing and refilling
+    /// would also work, and would take the count to zero on the way — long enough for the empty state
+    /// to flash and for the selection to be lost.
+    /// </remarks>
+    private static void Restate<T>(ObservableCollection<T> items)
+    {
+        for (var i = 0; i < items.Count; i++)
+        {
+            items[i] = items[i];
+        }
     }
 
     // ==== Dialog ============================================================================
@@ -867,18 +1190,43 @@ public partial class MainViewModel : ObservableObject
     /// <summary>Shows a message with a single dismiss button and waits for it to be dismissed.</summary>
     public Task ShowMessageAsync(string title, string message, StatusSeverity severity, string detail = "")
     {
-        return ShowDialogAsync(title, message, detail, "知道了", severity, cancellable: false, destructive: false);
+        return ShowDialogAsync(
+            title,
+            message,
+            detail,
+            Strings.Get("Str.Dialog.Acknowledge"),
+            severity,
+            cancellable: false,
+            destructive: false);
+    }
+
+    /// <summary>Shows a failure with a redacted, copyable diagnostic report.</summary>
+    public Task ShowExceptionAsync(string title, string message, Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return ShowDialogAsync(
+            title,
+            message,
+            DiagnosticReport.Redact(exception.Message),
+            Strings.Get("Str.Dialog.Acknowledge"),
+            StatusSeverity.Error,
+            cancellable: false,
+            destructive: false,
+            copyText: DiagnosticReport.Build(exception));
     }
 
     private Task<bool> ConfirmOverwriteAsync()
     {
-        var count = Sources.Count == 1 ? Sources[0].DisplayName : $"{Sources.Count} 个位置";
+        var where = Sources.Count == 1
+            ? Sources[0].DisplayName
+            : Strings.Format("Str.Source.Locations", Sources.Count);
 
         return ShowDialogAsync(
-            "覆盖原文件？",
-            $"将直接替换 {count} 中的图片，原文件不会保留，也无法通过回收站恢复。",
-            "建议先用“输出到子文件夹”确认效果，再改回覆盖模式。",
-            "覆盖原文件",
+            Strings.Get("Str.Confirm.Overwrite.Title"),
+            Strings.Format("Str.Confirm.Overwrite.Body", where),
+            Strings.Get("Str.Confirm.Overwrite.Detail"),
+            Strings.Get("Str.Confirm.Overwrite.Confirm"),
             StatusSeverity.Warning,
             cancellable: true,
             destructive: true);
@@ -891,7 +1239,8 @@ public partial class MainViewModel : ObservableObject
         string confirmText,
         StatusSeverity severity,
         bool cancellable,
-        bool destructive)
+        bool destructive,
+        string copyText = "")
     {
         // A dialog opening while one is already up would strand the first one's awaiter forever.
         // Resolving it as a decline keeps that call site unblocked and matches what the user sees:
@@ -901,6 +1250,8 @@ public partial class MainViewModel : ObservableObject
         DialogTitle = title;
         DialogMessage = message;
         DialogDetail = detail;
+        DialogCopyText = copyText;
+        DialogCopyLabel = Strings.Get("Str.Dialog.CopyError");
         DialogConfirmText = confirmText;
         DialogSeverity = severity;
         IsDialogCancellable = cancellable;
@@ -914,6 +1265,8 @@ public partial class MainViewModel : ObservableObject
     private void CloseDialog(bool confirmed)
     {
         IsDialogOpen = false;
+        DialogCopyText = string.Empty;
+        DialogCopyLabel = Strings.Get("Str.Dialog.CopyError");
 
         var completion = _dialogCompletion;
         _dialogCompletion = null;
@@ -934,6 +1287,7 @@ public partial class MainViewModel : ObservableObject
         ApplyPresetCommand.NotifyCanExecuteChanged();
         ExportReportCommand.NotifyCanExecuteChanged();
         ClearResultsCommand.NotifyCanExecuteChanged();
+        RefreshUpdateCommands();
     }
 
     partial void OnOutputFormatChanged(string value)
@@ -1024,6 +1378,46 @@ public partial class MainViewModel : ObservableObject
     {
         ThemeService.Apply(value);
         QueueSave();
+    }
+
+    partial void OnIsEnglishChanged(bool value)
+    {
+        Strings.Apply(value ? Language.English : Language.Chinese);
+        RefreshLocalizedText();
+        QueueSave();
+    }
+
+    partial void OnAutoCheckUpdatesChanged(bool value)
+    {
+        QueueSave();
+
+        if (_isInitializing)
+        {
+            return;
+        }
+
+        _updateCts?.Cancel();
+        _updateCts?.Dispose();
+        _updateCts = null;
+
+        if (value && _updateService.IsInstalled)
+        {
+            _updateCts = new CancellationTokenSource();
+            _ = RunAutomaticUpdateCheckAsync(_updateCts.Token);
+        }
+    }
+
+    partial void OnDialogCopyTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(CanCopyDialog));
+        DialogCopyCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnAvailableUpdateChanged(UpdateRelease? value)
+    {
+        OnPropertyChanged(nameof(HasAvailableUpdate));
+        OnPropertyChanged(nameof(UpdateNotes));
+        InstallUpdateCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnIsCompressingChanged(bool value) => RefreshCommandStates();

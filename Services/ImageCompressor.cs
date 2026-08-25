@@ -177,7 +177,7 @@ public sealed class ImageCompressor : IImageCompressor
 
         if (!IsSupportedFormat(inputPath))
         {
-            return CompressionResult.Failure(inputPath, "不支持的图片格式。");
+            return CompressionResult.Failure(inputPath, Strings.Get("Str.Error.UnsupportedFormat"));
         }
 
         try

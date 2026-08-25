@@ -1,3 +1,5 @@
+using ImageMinify.Helpers;
+
 namespace ImageMinify.Models;
 
 /// <summary>Why a file is not counted as compressed.</summary>
@@ -85,8 +87,8 @@ public record CompressionResult
     public string CompressionRatioDisplay => State switch
     {
         ResultState.Compressed => $"{CompressionRatio:F1}%",
-        ResultState.Skipped => "已跳过",
-        _ => "失败",
+        ResultState.Skipped => Strings.Get("Str.State.Skipped"),
+        _ => Strings.Get("Str.State.Failed"),
     };
 
     /// <summary>The pixel dimensions for the row, with an arrow only when the run changed them.</summary>

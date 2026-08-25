@@ -28,7 +28,12 @@ public sealed class PngCompressor : IFormatEncoder
 
     public string QuantizationName => HasImagequant ? "imagequant" : "ImageSharp";
 
-    public string LosslessOptimizerName => HasOxipng ? "oxipng" : "未安装";
+    /// <summary>The lossless post-processor in play, or empty when there is none.</summary>
+    /// <remarks>
+    /// An encoder reports what it found, not what to call the absence of it — the wording for that
+    /// is a translation, and it belongs with the rest of them.
+    /// </remarks>
+    public string LosslessOptimizerName => HasOxipng ? "oxipng" : string.Empty;
 
     public Image<Rgba32> Prepare(Image<Rgba32> image) => image;
 

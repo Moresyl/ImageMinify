@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
+using ImageMinify.Helpers;
 using ImageMinify.Interop;
 using ImageMinify.Services;
 using ImageMinify.ViewModels;
@@ -32,6 +33,7 @@ public partial class MainWindow : Window
         _viewModel.SelectFilesHandler = PickFilesAsync;
         _viewModel.SelectFolderHandler = PickFolderAsync;
         _viewModel.SaveReportHandler = PickReportPathAsync;
+        _viewModel.CopyTextHandler = CopyTextAsync;
 
         DataContext = _viewModel;
 
@@ -154,6 +156,13 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_viewModel.IsSettingsOpen && e.Key == Key.Escape)
+        {
+            _viewModel.CloseSettingsCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
         if (_viewModel.IsPreviewOpen && e.Key == Key.Escape)
         {
             _viewModel.ClosePreviewCommand.Execute(null);
@@ -239,7 +248,7 @@ public partial class MainWindow : Window
         base.OnDrop(e);
         DropHint.Visibility = Visibility.Collapsed;
 
-        if (_viewModel.IsCompressing || e.Data.GetData(DataFormats.FileDrop) is not string[] paths)
+        if (!CanAcceptDrop() || e.Data.GetData(DataFormats.FileDrop) is not string[] paths)
         {
             return;
         }
@@ -255,12 +264,20 @@ public partial class MainWindow : Window
 
     private void UpdateDragFeedback(DragEventArgs e)
     {
-        var accepted = !_viewModel.IsCompressing && e.Data.GetDataPresent(DataFormats.FileDrop);
+        var accepted = CanAcceptDrop() && e.Data.GetDataPresent(DataFormats.FileDrop);
 
         e.Effects = accepted ? DragDropEffects.Copy : DragDropEffects.None;
         e.Handled = true;
 
         DropHint.Visibility = accepted ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private bool CanAcceptDrop()
+    {
+        return !_viewModel.IsCompressing
+            && !_viewModel.IsSettingsOpen
+            && !_viewModel.IsDialogOpen
+            && !_viewModel.IsPreviewOpen;
     }
 
     // ==== File dialogs ========================================================================
@@ -270,7 +287,7 @@ public partial class MainWindow : Window
         var dialog = new OpenFileDialog
         {
             Multiselect = true,
-            Title = "选择图片",
+            Title = Strings.Get("Str.Picker.Images"),
             Filter = BuildFilter(),
         };
 
@@ -293,10 +310,10 @@ public partial class MainWindow : Window
     {
         var dialog = new SaveFileDialog
         {
-            Title = "导出压缩报告",
+            Title = Strings.Get("Str.Picker.ExportReport"),
             FileName = suggestedFileName,
             DefaultExt = ".csv",
-            Filter = "CSV 文件|*.csv|所有文件|*.*",
+            Filter = $"{Strings.Get("Str.Picker.CsvFilter")}|*.csv|{Strings.Get("Str.Picker.AllFilter")}|*.*",
             AddExtension = true,
         };
 
@@ -310,6 +327,12 @@ public partial class MainWindow : Window
     private string BuildFilter()
     {
         var extensions = string.Join(';', _viewModel.SupportedExtensions.Select(extension => '*' + extension));
-        return $"图片文件|{extensions}|所有文件|*.*";
+        return $"{Strings.Get("Str.Picker.ImageFilter")}|{extensions}|{Strings.Get("Str.Picker.AllFilter")}|*.*";
+    }
+
+    private static Task CopyTextAsync(string value)
+    {
+        Clipboard.SetText(value);
+        return Task.CompletedTask;
     }
 }

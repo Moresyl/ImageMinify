@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Threading;
+using ImageMinify.Helpers;
 using ImageMinify.Services;
 using ImageMinify.ViewModels;
 
@@ -7,11 +8,19 @@ namespace ImageMinify;
 
 public partial class App : Application
 {
+    private MainViewModel? _viewModel;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;
+
+        // Publishes the default language's strings before anything is shown. The saved choice is
+        // applied a moment later, once the settings have been read — the same order the theme
+        // follows, and for the same reason: a window whose labels are all missing while it waits for
+        // a disk read is worse than one that switches language on the frame after it appears.
+        Strings.Apply(Language.Chinese);
 
         var compressor = new ImageCompressor(
             new ExifService(),
@@ -23,7 +32,8 @@ public partial class App : Application
         // window saves its own placement through it; two instances would be two write paths to the
         // same store, and the later flush would drop whatever the other one had queued.
         var settingsService = new SettingsService();
-        var viewModel = new MainViewModel(compressor, settingsService);
+        var viewModel = new MainViewModel(compressor, settingsService, new UpdateService());
+        _viewModel = viewModel;
 
         var window = new Views.MainWindow(viewModel, settingsService);
         MainWindow = window;
@@ -41,11 +51,21 @@ public partial class App : Application
     /// </remarks>
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        MessageBox.Show(
-            e.Exception.Message,
-            "ImageMinify 遇到问题",
-            MessageBoxButton.OK,
-            MessageBoxImage.Warning);
+        if (_viewModel is not null)
+        {
+            _ = _viewModel.ShowExceptionAsync(
+                Strings.Get("Str.App.Crash"),
+                Strings.Get("Str.App.Crash.Body"),
+                e.Exception);
+        }
+        else
+        {
+            MessageBox.Show(
+                DiagnosticReport.Redact(e.Exception.Message),
+                Strings.Get("Str.App.Crash"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
 
         e.Handled = true;
     }

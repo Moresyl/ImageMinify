@@ -1,3 +1,5 @@
+using ImageMinify.Helpers;
+
 namespace ImageMinify.Models;
 
 /// <summary>
@@ -17,15 +19,23 @@ public record EngineCapabilities
 
     public string JpegOptimizer { get; init; } = "ImageSharp";
 
-    public string PngLossless { get; init; } = "未安装";
+    /// <summary>The lossless post-processor's name, or empty when there is none on this machine.</summary>
+    /// <remarks>
+    /// Empty rather than the words "not installed": those words are a translation, and a record that
+    /// is built once at startup would hold whichever language happened to be live at the time.
+    /// <see cref="PngLosslessDisplay"/> supplies them on read instead.
+    /// </remarks>
+    public string PngLossless { get; init; } = string.Empty;
 
     public int ProcessorCount { get; init; } = 1;
 
-    public string JpegOptimizerDisplay => $"JPEG · {JpegOptimizer}";
+    public string JpegOptimizerDisplay => Strings.Format("Str.Engine.Jpeg", JpegOptimizer);
 
-    public string PngQuantizationDisplay => $"PNG 量化 · {PngQuantization}";
+    public string PngQuantizationDisplay => Strings.Format("Str.Engine.PngQuantization", PngQuantization);
 
-    public string PngLosslessDisplay => $"PNG 无损 · {PngLossless}";
+    public string PngLosslessDisplay => Strings.Format(
+        "Str.Engine.PngLossless",
+        PngLossless.Length == 0 ? Strings.Get("Str.Engine.NotInstalled") : PngLossless);
 
-    public string ParallelismDisplay => $"并行 · {ProcessorCount} 线程";
+    public string ParallelismDisplay => Strings.Format("Str.Engine.Parallelism", ProcessorCount);
 }

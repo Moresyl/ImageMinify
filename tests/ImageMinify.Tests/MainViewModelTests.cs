@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ImageMinify.Helpers;
 using ImageMinify.Models;
 using ImageMinify.Services;
 using ImageMinify.ViewModels;
@@ -278,6 +279,84 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(37, loaded.Options.Quality);
     }
 
+    [Fact]
+    public async Task InitializeAsync_RestoresLanguageAndUpdatePreference()
+    {
+        var settingsService = new SettingsService(new InMemorySettingsStore());
+        await settingsService.SaveAsync(new AppSettingsSnapshot
+        {
+            Language = Language.English,
+            AutoCheckUpdates = false,
+        });
+
+        var viewModel = Create(settingsService);
+        await viewModel.InitializeAsync();
+
+        Assert.True(viewModel.IsEnglish);
+        Assert.False(viewModel.AutoCheckUpdates);
+        Assert.Equal(Language.English, Strings.Current);
+
+        viewModel.IsEnglish = false;
+        await viewModel.ShutdownAsync();
+
+        var restored = await settingsService.LoadAsync();
+        Assert.Equal(Language.Chinese, restored.Language);
+    }
+
+    [Fact]
+    public async Task Settings_UpdateFlowChecksDownloadsAndReportsProgress()
+    {
+        var update = new FakeUpdateService
+        {
+            IsInstalled = true,
+            Release = new UpdateRelease("3.1.0", "New release notes"),
+        };
+        var viewModel = Create(updateService: update);
+        await viewModel.InitializeAsync();
+
+        viewModel.OpenSettingsCommand.Execute(null);
+        await viewModel.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsSettingsOpen);
+        Assert.True(viewModel.HasAvailableUpdate);
+        Assert.Equal("3.1.0", viewModel.AvailableUpdate?.Version);
+
+        await viewModel.InstallUpdateCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.UpdateProgress == 100);
+
+        Assert.True(update.Applied);
+        Assert.Equal(100, viewModel.UpdateProgress);
+
+        viewModel.CloseSettingsCommand.Execute(null);
+        Assert.False(viewModel.IsSettingsOpen);
+    }
+
+    [Fact]
+    public async Task ExceptionDialog_CopiesRedactedDiagnostics()
+    {
+        var viewModel = Create();
+        string? copied = null;
+        viewModel.CopyTextHandler = text =>
+        {
+            copied = text;
+            return Task.CompletedTask;
+        };
+
+        var dialog = viewModel.ShowExceptionAsync(
+            "Failure",
+            "Something failed",
+            new InvalidOperationException("token=should-not-leak"));
+
+        Assert.True(viewModel.CanCopyDialog);
+        await viewModel.DialogCopyCommand.ExecuteAsync(null);
+
+        Assert.Contains("token=[REDACTED]", copied);
+        Assert.DoesNotContain("should-not-leak", copied);
+
+        viewModel.DialogConfirmCommand.Execute(null);
+        await dialog;
+    }
+
     /// <summary>
     /// The command and the row's eye have to agree about which results can be compared, or a row
     /// offers a button that opens an empty stage.
@@ -312,8 +391,11 @@ public sealed class MainViewModelTests : IDisposable
 
     // ==== Helpers =============================================================================
 
-    private MainViewModel Create(SettingsService? settingsService = null) =>
-        new(new FakeImageCompressor(), settingsService ?? new SettingsService(new InMemorySettingsStore()));
+    private MainViewModel Create(SettingsService? settingsService = null, IUpdateService? updateService = null) =>
+        new(
+            new FakeImageCompressor(),
+            settingsService ?? new SettingsService(new InMemorySettingsStore()),
+            updateService ?? new FakeUpdateService());
 
     private string CreateFile(string name)
     {
@@ -449,6 +531,29 @@ public sealed class MainViewModelTests : IDisposable
             PngLossless = "oxipng",
             ProcessorCount = 8,
         };
+    }
+
+    private sealed class FakeUpdateService : IUpdateService
+    {
+        public bool IsInstalled { get; init; }
+
+        public UpdateRelease? Release { get; init; }
+
+        public bool Applied { get; private set; }
+
+        public Task<UpdateRelease?> CheckAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(Release);
+
+        public Task DownloadAndApplyAsync(
+            UpdateRelease release,
+            IProgress<int>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            progress?.Report(25);
+            progress?.Report(100);
+            Applied = true;
+            return Task.CompletedTask;
+        }
     }
 
     public void Dispose()

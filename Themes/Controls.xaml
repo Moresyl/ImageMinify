@@ -208,7 +208,7 @@
 
     <!--
         One template for every framed button. An optional leading glyph comes from Tag, which keeps
-        `<Button Tag="{StaticResource Icon.Folder}" Content="选择目录"/>` to a single line and makes
+        a button's optional icon and localized content fit on a single line and makes
         the glyph follow Foreground through every state without a second brush to maintain.
 
         The glyph's margin is 7 on the right and half a pixel of lift on the top. A 14px glyph

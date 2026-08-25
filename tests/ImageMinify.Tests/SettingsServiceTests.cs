@@ -1,3 +1,4 @@
+using ImageMinify.Helpers;
 using ImageMinify.Models;
 using ImageMinify.Services;
 
@@ -39,6 +40,8 @@ public sealed class SettingsServiceTests : IDisposable
                 MaxParallelism = 4,
             },
             IsDarkTheme = true,
+            Language = Language.English,
+            AutoCheckUpdates = false,
             LastPaths = [fileA, fileB, _tempDirectory],
         };
 
@@ -47,6 +50,8 @@ public sealed class SettingsServiceTests : IDisposable
 
         Assert.Equal(snapshot.Options, loaded.Options);
         Assert.True(loaded.IsDarkTheme);
+        Assert.Equal(Language.English, loaded.Language);
+        Assert.False(loaded.AutoCheckUpdates);
         Assert.Equal(snapshot.LastPaths, loaded.LastPaths);
     }
 

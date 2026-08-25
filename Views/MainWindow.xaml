@@ -124,40 +124,31 @@
                         Margin="8,0,0,0"
                         VerticalAlignment="Center"
                         Style="{StaticResource Text.Caption}"
-                        Text="图片压缩工具" />
+                        Text="{DynamicResource Str.App.Tagline}" />
                 </StackPanel>
 
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                    <!-- The glyph shows the theme you would switch *to*, not the one you are in:
-                         a control labelled with its own current state gives you nothing to act on. -->
-                    <Button Command="{Binding ToggleThemeCommand}" ToolTip="切换深色 / 浅色主题">
-                        <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource Button.Window}">
-                                <Setter Property="Tag" Value="{StaticResource Icon.Moon}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsDarkTheme}" Value="True">
-                                        <Setter Property="Tag" Value="{StaticResource Icon.Sun}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
+                    <Button
+                        Command="{Binding OpenSettingsCommand}"
+                        Style="{StaticResource Button.Window}"
+                        Tag="{StaticResource Icon.Settings}"
+                        ToolTip="{DynamicResource Str.Caption.Settings}" />
 
                     <Button
                         Click="OnMinimizeClick"
                         Style="{StaticResource Button.Window}"
                         Tag="{StaticResource Icon.Window.Minimize}"
-                        ToolTip="最小化" />
+                        ToolTip="{DynamicResource Str.Caption.Minimize}" />
 
                     <Button Click="OnMaximizeClick">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource Button.Window}">
                                 <Setter Property="Tag" Value="{StaticResource Icon.Window.Maximize}" />
-                                <Setter Property="ToolTip" Value="最大化" />
+                                <Setter Property="ToolTip" Value="{DynamicResource Str.Caption.Maximize}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
                                         <Setter Property="Tag" Value="{StaticResource Icon.Window.Restore}" />
-                                        <Setter Property="ToolTip" Value="向下还原" />
+                                        <Setter Property="ToolTip" Value="{DynamicResource Str.Caption.Restore}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -168,7 +159,7 @@
                         Click="OnCloseClick"
                         Style="{StaticResource Button.Window.Close}"
                         Tag="{StaticResource Icon.Window.Close}"
-                        ToolTip="关闭" />
+                        ToolTip="{DynamicResource Str.Caption.Close}" />
                 </StackPanel>
             </Grid>
 
@@ -203,7 +194,7 @@
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     Style="{StaticResource Text.Section}"
-                                    Text="图片来源" />
+                                    Text="{DynamicResource Str.Source.Heading}" />
                                 <Border
                                     Margin="10,0,0,0"
                                     Style="{StaticResource Chip}"
@@ -215,19 +206,19 @@
                             <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                                 <Button
                                     Command="{Binding AddFilesCommand}"
-                                    Content="添加图片"
+                                    Content="{DynamicResource Str.Source.AddFiles}"
                                     Tag="{StaticResource Icon.Files}" />
                                 <Button
                                     Margin="8,0,0,0"
                                     Command="{Binding AddFolderCommand}"
-                                    Content="添加文件夹"
+                                    Content="{DynamicResource Str.Source.AddFolder}"
                                     Tag="{StaticResource Icon.FolderAdd}" />
                                 <Button
                                     Margin="8,0,0,0"
                                     Command="{Binding ClearSourcesCommand}"
                                     Style="{StaticResource Button.Subtle}"
                                     Tag="{StaticResource Icon.Trash}"
-                                    ToolTip="清空来源列表"
+                                    ToolTip="{DynamicResource Str.Source.Clear}"
                                     Width="{StaticResource Size.Control}" />
                             </StackPanel>
                         </Grid>
@@ -252,12 +243,12 @@
                                     Margin="0,10,0,0"
                                     HorizontalAlignment="Center"
                                     Style="{StaticResource Text.Secondary}"
-                                    Text="把图片或文件夹拖到这里" />
+                                    Text="{DynamicResource Str.Source.EmptyTitle}" />
                                 <TextBlock
                                     Margin="0,4,0,0"
                                     HorizontalAlignment="Center"
                                     Style="{StaticResource Text.Caption}"
-                                    Text="支持 JPG · PNG · WebP · BMP" />
+                                    Text="{DynamicResource Str.Source.EmptyHint}" />
                             </StackPanel>
                         </Border>
 
@@ -267,7 +258,7 @@
                             Grid.Row="1"
                             MaxHeight="104"
                             Margin="{StaticResource Gap.Card}"
-                            VerticalScrollBarVisibility="Auto"
+                            VerticalScrollBarVisibility="Hidden"
                             Visibility="{Binding Sources.Count, Converter={StaticResource CountToVisibility}}">
                             <ItemsControl ItemsSource="{Binding Sources}">
                                 <ItemsControl.ItemsPanel>
@@ -319,7 +310,7 @@
                                                     CommandParameter="{Binding}"
                                                     Style="{StaticResource Button.Icon.Small}"
                                                     Tag="{StaticResource Icon.Dismiss}"
-                                                    ToolTip="移除" />
+                                                    ToolTip="{DynamicResource Str.Source.Remove}" />
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
@@ -351,13 +342,13 @@
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     Style="{StaticResource Text.Section}"
-                                    Text="压缩结果" />
+                                    Text="{DynamicResource Str.Results.Heading}" />
                             </StackPanel>
 
                             <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                                 <Button
                                     Command="{Binding ExportReportCommand}"
-                                    Content="导出报告"
+                                    Content="{DynamicResource Str.Results.Export}"
                                     Style="{StaticResource Button.Subtle}"
                                     Tag="{StaticResource Icon.Export}" />
                                 <Button
@@ -365,7 +356,7 @@
                                     Command="{Binding ClearResultsCommand}"
                                     Style="{StaticResource Button.Subtle}"
                                     Tag="{StaticResource Icon.Trash}"
-                                    ToolTip="清空结果"
+                                    ToolTip="{DynamicResource Str.Results.Clear}"
                                     Width="{StaticResource Size.Control}" />
                             </StackPanel>
                         </Grid>
@@ -382,7 +373,7 @@
                                 <TextBlock
                                     Margin="0,1,0,0"
                                     Style="{StaticResource Text.Caption}"
-                                    Text="已压缩" />
+                                    Text="{DynamicResource Str.Stats.Compressed}" />
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock
@@ -392,21 +383,21 @@
                                 <TextBlock
                                     Margin="0,1,0,0"
                                     Style="{StaticResource Text.Caption}"
-                                    Text="节省空间" />
+                                    Text="{DynamicResource Str.Stats.Saved}" />
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Style="{StaticResource Text.Metric}" Text="{Binding Summary.OverallCompressionRatioDisplay}" />
                                 <TextBlock
                                     Margin="0,1,0,0"
                                     Style="{StaticResource Text.Caption}"
-                                    Text="平均压缩率" />
+                                    Text="{DynamicResource Str.Stats.Ratio}" />
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Style="{StaticResource Text.Metric}" Text="{Binding Summary.ElapsedDisplay}" />
                                 <TextBlock
                                     Margin="0,1,0,0"
                                     Style="{StaticResource Text.Caption}"
-                                    Text="用时" />
+                                    Text="{DynamicResource Str.Stats.Elapsed}" />
                             </StackPanel>
                         </UniformGrid>
 
@@ -427,26 +418,26 @@
                                 <TextBlock
                                     Grid.Column="1"
                                     Style="{StaticResource Column.Header}"
-                                    Text="文件" />
+                                    Text="{DynamicResource Str.Column.File}" />
                                 <TextBlock
                                     Grid.Column="2"
                                     Style="{StaticResource Column.Header}"
-                                    Text="尺寸" />
+                                    Text="{DynamicResource Str.Column.Dimensions}" />
                                 <TextBlock
                                     Grid.Column="3"
                                     HorizontalAlignment="Right"
                                     Style="{StaticResource Column.Header}"
-                                    Text="原始" />
+                                    Text="{DynamicResource Str.Column.Before}" />
                                 <TextBlock
                                     Grid.Column="5"
                                     HorizontalAlignment="Right"
                                     Style="{StaticResource Column.Header}"
-                                    Text="压缩后" />
+                                    Text="{DynamicResource Str.Column.After}" />
                                 <TextBlock
                                     Grid.Column="6"
                                     HorizontalAlignment="Right"
                                     Style="{StaticResource Column.Header}"
-                                    Text="压缩率" />
+                                    Text="{DynamicResource Str.Column.Ratio}" />
                             </Grid>
                             <Border Style="{StaticResource Divider}" />
                         </StackPanel>
@@ -456,7 +447,7 @@
                                 Margin="0,2,0,0"
                                 ItemContainerStyle="{StaticResource Row}"
                                 ItemsSource="{Binding Results}"
-                                ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                ScrollViewer.VerticalScrollBarVisibility="Hidden">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate DataType="{x:Type models:CompressionResult}">
                                         <Grid ToolTip="{Binding Error}">
@@ -535,7 +526,7 @@
                                                     Fill="{DynamicResource Brush.Warning}"
                                                     SnapsToDevicePixels="True"
                                                     Stretch="Uniform"
-                                                    ToolTip="未能达到目标大小，可尝试更小的尺寸或改用 WebP"
+                                                    ToolTip="{DynamicResource Str.Results.MissedTarget}"
                                                     Visibility="{Binding TargetMissed, Converter={StaticResource BoolToVisibility}}" />
                                                 <TextBlock
                                                     VerticalAlignment="Center"
@@ -561,7 +552,7 @@
                                                     CommandParameter="{Binding}"
                                                     Style="{StaticResource Button.Icon.Small}"
                                                     Tag="{StaticResource Icon.Eye}"
-                                                    ToolTip="对比原图与压缩后"
+                                                    ToolTip="{DynamicResource Str.Results.Compare}"
                                                     Visibility="{Binding CanPreview, Converter={StaticResource BoolToVisibility}}" />
                                                 <Button
                                                     Margin="4,0,0,0"
@@ -569,7 +560,7 @@
                                                     CommandParameter="{Binding}"
                                                     Style="{StaticResource Button.Icon.Small}"
                                                     Tag="{StaticResource Icon.Reveal}"
-                                                    ToolTip="在文件资源管理器中显示" />
+                                                    ToolTip="{DynamicResource Str.Results.Reveal}" />
                                             </StackPanel>
                                         </Grid>
                                     </DataTemplate>
@@ -592,12 +583,12 @@
                                     Margin="0,10,0,0"
                                     HorizontalAlignment="Center"
                                     Style="{StaticResource Text.Secondary}"
-                                    Text="还没有压缩结果" />
+                                    Text="{DynamicResource Str.Results.EmptyTitle}" />
                                 <TextBlock
                                     Margin="0,4,0,0"
                                     HorizontalAlignment="Center"
                                     Style="{StaticResource Text.Caption}"
-                                    Text="在右侧调好参数，然后点击“开始压缩”" />
+                                    Text="{DynamicResource Str.Results.EmptyHint}" />
                             </StackPanel>
                         </Grid>
                     </Grid>
@@ -611,7 +602,7 @@
                     Grid.Column="1"
                     Margin="12,0,0,0"
                     Style="{StaticResource Panel}">
-                    <ScrollViewer Padding="{StaticResource Inset.Card}" VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer Padding="{StaticResource Inset.Card}" VerticalScrollBarVisibility="Hidden">
                         <StackPanel>
 
                             <!-- Presets -->
@@ -620,7 +611,7 @@
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     Style="{StaticResource Text.Section}"
-                                    Text="预设" />
+                                    Text="{DynamicResource Str.Preset.Heading}" />
                             </StackPanel>
                             <Border Margin="0,8,0,0" Style="{StaticResource Segment.Group}">
                                 <ItemsControl ItemsSource="{Binding Presets}">
@@ -659,7 +650,7 @@
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     Style="{StaticResource Text.Section}"
-                                    Text="输出格式" />
+                                    Text="{DynamicResource Str.Format.Heading}" />
                             </StackPanel>
                             <Border
                                 Margin="0,8,0,0"
@@ -667,7 +658,7 @@
                                 Style="{StaticResource Segment.Group}">
                                 <UniformGrid Columns="4">
                                     <RadioButton
-                                        Content="原格式"
+                                        Content="{DynamicResource Str.Format.Original}"
                                         IsChecked="{Binding OutputFormat, Converter={StaticResource Equality}, ConverterParameter=original}"
                                         Style="{StaticResource Segment}" />
                                     <RadioButton
@@ -687,7 +678,7 @@
                             <TextBlock
                                 Margin="0,7,0,0"
                                 Style="{StaticResource Text.Caption}"
-                                Text="覆盖原文件时无法转换格式"
+                                Text="{DynamicResource Str.Format.LockedByOverwrite}"
                                 TextWrapping="Wrap"
                                 Visibility="{Binding IsOverwriting, Converter={StaticResource BoolToVisibility}}" />
 
@@ -700,7 +691,7 @@
                                     <TextBlock
                                         VerticalAlignment="Center"
                                         Style="{StaticResource Text.Section}"
-                                        Text="画质" />
+                                        Text="{DynamicResource Str.Quality.Heading}" />
                                 </StackPanel>
                                 <TextBlock
                                     HorizontalAlignment="Right"
@@ -718,21 +709,21 @@
                                 TickFrequency="1"
                                 Value="{Binding Quality, Mode=TwoWay}" />
                             <Grid>
-                                <TextBlock Style="{StaticResource Text.Caption}" Text="更小" />
+                                <TextBlock Style="{StaticResource Text.Caption}" Text="{DynamicResource Str.Quality.Smaller}" />
                                 <TextBlock
                                     HorizontalAlignment="Right"
                                     Style="{StaticResource Text.Caption}"
-                                    Text="更清晰" />
+                                    Text="{DynamicResource Str.Quality.Sharper}" />
                             </Grid>
 
                             <Grid Style="{StaticResource Field}">
-                                <TextBlock Style="{StaticResource Field.Label}" Text="目标大小" />
+                                <TextBlock Style="{StaticResource Field.Label}" Text="{DynamicResource Str.Quality.TargetSize}" />
                                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                                     <TextBox
                                         Width="72"
                                         HorizontalContentAlignment="Right"
                                         Text="{Binding TargetSizeKb}"
-                                        ToolTip="每张图片压缩到不超过这个大小；0 表示不限制" />
+                                        ToolTip="{DynamicResource Str.Quality.TargetSizeHint}" />
                                     <TextBlock
                                         Margin="8,0,0,0"
                                         Style="{StaticResource Field.Label}"
@@ -742,7 +733,7 @@
                             <TextBlock
                                 Margin="0,7,0,0"
                                 Style="{StaticResource Text.Caption}"
-                                Text="已按目标大小自动搜索画质，上方滑块暂停使用"
+                                Text="{DynamicResource Str.Quality.TargetSizeActive}"
                                 TextWrapping="Wrap"
                                 Visibility="{Binding IsQualityEnabled, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
 
@@ -754,26 +745,26 @@
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     Style="{StaticResource Text.Section}"
-                                    Text="尺寸" />
+                                    Text="{DynamicResource Str.Scale.Heading}" />
                             </StackPanel>
                             <Border Margin="0,8,0,0" Style="{StaticResource Segment.Group}">
                                 <UniformGrid Columns="3">
                                     <RadioButton
-                                        Content="保持原尺寸"
+                                        Content="{DynamicResource Str.Scale.None}"
                                         IsChecked="{Binding ScaleMode, Converter={StaticResource Equality}, ConverterParameter=None}"
                                         Style="{StaticResource Segment}" />
                                     <RadioButton
-                                        Content="限制长边"
+                                        Content="{DynamicResource Str.Scale.LongestEdge}"
                                         IsChecked="{Binding ScaleMode, Converter={StaticResource Equality}, ConverterParameter=LongestEdge}"
                                         Style="{StaticResource Segment}" />
                                     <RadioButton
-                                        Content="按百分比"
+                                        Content="{DynamicResource Str.Scale.Percent}"
                                         IsChecked="{Binding ScaleMode, Converter={StaticResource Equality}, ConverterParameter=Percent}"
                                         Style="{StaticResource Segment}" />
                                 </UniformGrid>
                             </Border>
                             <Grid Style="{StaticResource Field}" Visibility="{Binding IsScaleValueEnabled, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Style="{StaticResource Field.Label}" Text="数值" />
+                                <TextBlock Style="{StaticResource Field.Label}" Text="{DynamicResource Str.Scale.Value}" />
                                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                                     <TextBox
                                         Width="72"
@@ -789,7 +780,7 @@
                             <TextBlock
                                 Margin="0,7,0,0"
                                 Style="{StaticResource Text.Caption}"
-                                Text="只会缩小，不会把小图拉大"
+                                Text="{DynamicResource Str.Scale.NeverUpscales}"
                                 TextWrapping="Wrap"
                                 Visibility="{Binding IsScaleValueEnabled, Converter={StaticResource BoolToVisibility}}" />
 
@@ -801,52 +792,52 @@
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     Style="{StaticResource Text.Section}"
-                                    Text="处理方式" />
+                                    Text="{DynamicResource Str.Handling.Heading}" />
                             </StackPanel>
 
                             <Grid Style="{StaticResource Field}">
                                 <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource Text.Body}" Text="清除元数据" />
+                                    <TextBlock Style="{StaticResource Text.Body}" Text="{DynamicResource Str.Handling.StripMetadata}" />
                                     <TextBlock
                                         Margin="0,1,0,0"
                                         Style="{StaticResource Text.Caption}"
-                                        Text="删除 GPS、相机信息与缩略图" />
+                                        Text="{DynamicResource Str.Handling.StripMetadataHint}" />
                                 </StackPanel>
                                 <ToggleButton
                                     HorizontalAlignment="Right"
                                     IsChecked="{Binding StripMetadata}"
                                     Style="{StaticResource Switch}"
-                                    ToolTip="清除元数据" />
+                                    ToolTip="{DynamicResource Str.Handling.StripMetadata}" />
                             </Grid>
 
                             <Grid Style="{StaticResource Field}">
                                 <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource Text.Body}" Text="跳过变大的图片" />
+                                    <TextBlock Style="{StaticResource Text.Body}" Text="{DynamicResource Str.Handling.SkipLarger}" />
                                     <TextBlock
                                         Margin="0,1,0,0"
                                         Style="{StaticResource Text.Caption}"
-                                        Text="压缩后更大时保留原文件" />
+                                        Text="{DynamicResource Str.Handling.SkipLargerHint}" />
                                 </StackPanel>
                                 <ToggleButton
                                     HorizontalAlignment="Right"
                                     IsChecked="{Binding SkipWhenLarger}"
                                     Style="{StaticResource Switch}"
-                                    ToolTip="跳过变大的图片" />
+                                    ToolTip="{DynamicResource Str.Handling.SkipLarger}" />
                             </Grid>
 
                             <Grid Style="{StaticResource Field}">
                                 <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource Text.Body}" Text="包含子文件夹" />
+                                    <TextBlock Style="{StaticResource Text.Body}" Text="{DynamicResource Str.Handling.Recursive}" />
                                     <TextBlock
                                         Margin="0,1,0,0"
                                         Style="{StaticResource Text.Caption}"
-                                        Text="递归处理文件夹内的所有层级" />
+                                        Text="{DynamicResource Str.Handling.RecursiveHint}" />
                                 </StackPanel>
                                 <ToggleButton
                                     HorizontalAlignment="Right"
                                     IsChecked="{Binding Recursive}"
                                     Style="{StaticResource Switch}"
-                                    ToolTip="包含子文件夹" />
+                                    ToolTip="{DynamicResource Str.Handling.Recursive}" />
                             </Grid>
 
                             <Border Margin="{StaticResource Gap.Section}" Style="{StaticResource Divider}" />
@@ -857,30 +848,30 @@
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     Style="{StaticResource Text.Section}"
-                                    Text="输出位置" />
+                                    Text="{DynamicResource Str.Output.Heading}" />
                             </StackPanel>
                             <Border Margin="0,8,0,0" Style="{StaticResource Segment.Group}">
                                 <UniformGrid Columns="4">
                                     <RadioButton
-                                        Content="加后缀"
+                                        Content="{DynamicResource Str.Output.Suffix}"
                                         IsChecked="{Binding OutputMode, Converter={StaticResource Equality}, ConverterParameter=Suffix}"
                                         Style="{StaticResource Segment}"
-                                        ToolTip="写在原图旁边，文件名加上后缀" />
+                                        ToolTip="{DynamicResource Str.Output.SuffixHint}" />
                                     <RadioButton
-                                        Content="子文件夹"
+                                        Content="{DynamicResource Str.Output.SubFolder}"
                                         IsChecked="{Binding OutputMode, Converter={StaticResource Equality}, ConverterParameter=Subfolder}"
                                         Style="{StaticResource Segment}"
-                                        ToolTip="写进原图所在目录下的 compressed 文件夹" />
+                                        ToolTip="{DynamicResource Str.Output.SubFolderHint}" />
                                     <RadioButton
-                                        Content="指定目录"
+                                        Content="{DynamicResource Str.Output.Custom}"
                                         IsChecked="{Binding OutputMode, Converter={StaticResource Equality}, ConverterParameter=CustomFolder}"
                                         Style="{StaticResource Segment}"
-                                        ToolTip="写到你选择的文件夹，并保留原有的目录层级" />
+                                        ToolTip="{DynamicResource Str.Output.CustomHint}" />
                                     <RadioButton
-                                        Content="覆盖原图"
+                                        Content="{DynamicResource Str.Output.Overwrite}"
                                         IsChecked="{Binding OutputMode, Converter={StaticResource Equality}, ConverterParameter=Overwrite}"
                                         Style="{StaticResource Segment}"
-                                        ToolTip="直接替换原文件，不保留备份" />
+                                        ToolTip="{DynamicResource Str.Output.OverwriteHint}" />
                                 </UniformGrid>
                             </Border>
 
@@ -895,7 +886,7 @@
                                         </Style.Triggers>
                                     </Style>
                                 </Grid.Style>
-                                <TextBlock Style="{StaticResource Field.Label}" Text="文件名后缀" />
+                                <TextBlock Style="{StaticResource Field.Label}" Text="{DynamicResource Str.Output.SuffixLabel}" />
                                 <TextBox
                                     Width="140"
                                     HorizontalAlignment="Right"
@@ -934,7 +925,7 @@
                                     Grid.Column="1"
                                     Margin="8,0,0,0"
                                     Command="{Binding ChooseOutputFolderCommand}"
-                                    Content="选择"
+                                    Content="{DynamicResource Str.Output.Browse}"
                                     MinWidth="0"
                                     Padding="12,0"
                                     Tag="{StaticResource Icon.OpenFolder}" />
@@ -965,7 +956,7 @@
                                         Width="270"
                                         Foreground="{DynamicResource Brush.Warning}"
                                         Style="{StaticResource Text.Body}"
-                                        Text="原文件会被直接替换，且不进入回收站。"
+                                        Text="{DynamicResource Str.Output.OverwriteWarning}"
                                         TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
@@ -978,7 +969,7 @@
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     Style="{StaticResource Text.Section}"
-                                    Text="压缩引擎" />
+                                    Text="{DynamicResource Str.Engine.Heading}" />
                             </StackPanel>
                             <WrapPanel Margin="0,8,0,0">
                                 <Border Margin="0,0,6,6" Style="{StaticResource Chip}">
@@ -1043,14 +1034,14 @@
                         <Button
                             Margin="0,0,8,0"
                             Command="{Binding CancelCommand}"
-                            Content="停止"
+                            Content="{DynamicResource Str.Run.Stop}"
                             MinHeight="{StaticResource Size.Action}"
                             Tag="{StaticResource Icon.Stop}"
                             Visibility="{Binding IsCompressing, Converter={StaticResource BoolToVisibility}}" />
                         <Button
                             MinWidth="128"
                             Command="{Binding StartCommand}"
-                            Content="开始压缩"
+                            Content="{DynamicResource Str.Run.Start}"
                             Style="{StaticResource Button.Accent}"
                             Tag="{StaticResource Icon.Play}" />
                     </StackPanel>
@@ -1091,13 +1082,240 @@
                         Margin="0,14,0,0"
                         HorizontalAlignment="Center"
                         Style="{StaticResource Text.Subtitle}"
-                        Text="松开即可添加" />
+                        Text="{DynamicResource Str.Drop.Title}" />
                     <TextBlock
                         Margin="0,5,0,0"
                         HorizontalAlignment="Center"
                         Style="{StaticResource Text.Caption}"
-                        Text="图片或整个文件夹都可以" />
+                        Text="{DynamicResource Str.Drop.Hint}" />
                 </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ==== Settings ==================================================================== -->
+
+        <Grid
+            Background="{DynamicResource Brush.Bg.Scrim}"
+            Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVisibility}}">
+            <Border
+                Width="660"
+                MaxHeight="720"
+                Margin="48"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{DynamicResource Brush.Bg.Flyout}"
+                BorderBrush="{DynamicResource Brush.Stroke.Default}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource Radius.XLarge}"
+                Effect="{DynamicResource Effect.Shadow.Flyout}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Margin="22,18,18,16">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Text.Title}" Text="{DynamicResource Str.Settings.Title}" />
+                            <TextBlock
+                                Margin="0,3,0,0"
+                                Style="{StaticResource Text.Caption}"
+                                Text="{DynamicResource Str.Settings.Subtitle}" />
+                        </StackPanel>
+                        <Button
+                            Width="{StaticResource Size.Control}"
+                            HorizontalAlignment="Right"
+                            Command="{Binding CloseSettingsCommand}"
+                            Style="{StaticResource Button.Subtle}"
+                            Tag="{StaticResource Icon.Dismiss}"
+                            ToolTip="{DynamicResource Str.Settings.Close}" />
+                    </Grid>
+
+                    <ScrollViewer
+                        Grid.Row="1"
+                        Padding="22,0,22,22"
+                        VerticalScrollBarVisibility="Hidden">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Text.Section}" Text="{DynamicResource Str.Settings.General}" />
+
+                            <Border Margin="0,8,0,0" Padding="16,13" Style="{StaticResource Card}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        Style="{StaticResource Text.BodyStrong}"
+                                        Text="{DynamicResource Str.Settings.Language}" />
+                                    <Border Grid.Column="1" Style="{StaticResource Segment.Group}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton
+                                                Content="{DynamicResource Str.Settings.Chinese}"
+                                                IsChecked="{Binding IsEnglish, Converter={StaticResource Equality}, ConverterParameter=False, Mode=TwoWay}"
+                                                Style="{StaticResource Segment}" />
+                                            <RadioButton
+                                                Content="{DynamicResource Str.Settings.English}"
+                                                IsChecked="{Binding IsEnglish, Converter={StaticResource Equality}, ConverterParameter=True, Mode=TwoWay}"
+                                                Style="{StaticResource Segment}" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Border Margin="0,8,0,0" Padding="16,13" Style="{StaticResource Card}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        Style="{StaticResource Text.BodyStrong}"
+                                        Text="{DynamicResource Str.Settings.Theme}" />
+                                    <Border Grid.Column="1" Style="{StaticResource Segment.Group}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton
+                                                Content="{DynamicResource Str.Settings.Light}"
+                                                IsChecked="{Binding IsDarkTheme, Converter={StaticResource Equality}, ConverterParameter=False, Mode=TwoWay}"
+                                                Style="{StaticResource Segment}" />
+                                            <RadioButton
+                                                Content="{DynamicResource Str.Settings.Dark}"
+                                                IsChecked="{Binding IsDarkTheme, Converter={StaticResource Equality}, ConverterParameter=True, Mode=TwoWay}"
+                                                Style="{StaticResource Segment}" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <TextBlock
+                                Margin="0,18,0,0"
+                                Style="{StaticResource Text.Section}"
+                                Text="{DynamicResource Str.Settings.Updates}" />
+
+                            <Border Margin="0,8,0,0" Padding="16" Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource Text.BodyStrong}" Text="{DynamicResource Str.Settings.AutoCheck}" />
+                                            <TextBlock
+                                                Margin="0,3,20,0"
+                                                Style="{StaticResource Text.Caption}"
+                                                Text="{DynamicResource Str.Settings.AutoCheckHint}"
+                                                TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <ToggleButton
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            IsChecked="{Binding AutoCheckUpdates}"
+                                            Style="{StaticResource Switch}" />
+                                    </Grid>
+
+                                    <Border Margin="0,14,0,12" Style="{StaticResource Divider}" />
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource Text.Caption}" Text="{DynamicResource Str.Settings.CurrentVersion}" />
+                                            <TextBlock
+                                                Margin="0,2,0,0"
+                                                FontFamily="Consolas"
+                                                Style="{StaticResource Text.BodyStrong}"
+                                                Text="{Binding CurrentVersion, StringFormat=v{0}}" />
+                                            <TextBlock
+                                                Margin="0,5,12,0"
+                                                Style="{StaticResource Text.Secondary}"
+                                                Text="{Binding UpdateStatus}"
+                                                TextWrapping="Wrap" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal">
+                                            <Button
+                                                Command="{Binding CheckForUpdatesCommand}"
+                                                Content="{DynamicResource Str.Settings.CheckUpdate}"
+                                                Tag="{StaticResource Icon.Refresh}"
+                                                Visibility="{Binding HasAvailableUpdate, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                                            <Button
+                                                Command="{Binding InstallUpdateCommand}"
+                                                Content="{DynamicResource Str.Settings.OneClickUpdate}"
+                                                Style="{StaticResource Button.Accent}"
+                                                Tag="{StaticResource Icon.Download}"
+                                                Visibility="{Binding HasAvailableUpdate, Converter={StaticResource BoolToVisibility}}" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <ProgressBar
+                                        Height="4"
+                                        Margin="0,12,0,0"
+                                        Maximum="100"
+                                        Minimum="0"
+                                        Value="{Binding UpdateProgress}"
+                                        Visibility="{Binding IsInstallingUpdate, Converter={StaticResource BoolToVisibility}}" />
+
+                                    <StackPanel
+                                        Margin="0,13,0,0"
+                                        Visibility="{Binding AvailableUpdate, Converter={StaticResource NullToVisibility}}">
+                                        <TextBlock Style="{StaticResource Text.BodyStrong}" Text="{DynamicResource Str.Settings.ReleaseNotes}" />
+                                        <Border
+                                            MaxHeight="150"
+                                            Margin="0,7,0,0"
+                                            Padding="10"
+                                            Style="{StaticResource InsetPanel}">
+                                            <ScrollViewer VerticalScrollBarVisibility="Hidden">
+                                                <TextBlock Text="{Binding UpdateNotes}" TextWrapping="Wrap" />
+                                            </ScrollViewer>
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock
+                                Margin="0,18,0,0"
+                                Style="{StaticResource Text.Section}"
+                                Text="{DynamicResource Str.Settings.Diagnostics}" />
+
+                            <Border Margin="0,8,0,0" Padding="16" Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock
+                                        Style="{StaticResource Text.Secondary}"
+                                        Text="{DynamicResource Str.Settings.DiagnosticsHint}"
+                                        TextWrapping="Wrap" />
+                                    <StackPanel Margin="0,12,0,0" Orientation="Horizontal">
+                                        <Button
+                                            Command="{Binding CopyDiagnosticsCommand}"
+                                            Content="{DynamicResource Str.Settings.CopyDiagnostics}"
+                                            Tag="{StaticResource Icon.Copy}" />
+                                        <Button
+                                            Margin="8,0,0,0"
+                                            Command="{Binding OpenRepositoryCommand}"
+                                            Content="{DynamicResource Str.Settings.Repository}"
+                                            Style="{StaticResource Button.Subtle}"
+                                            Tag="{StaticResource Icon.External}" />
+                                        <Button
+                                            Margin="8,0,0,0"
+                                            Command="{Binding ReportIssueCommand}"
+                                            Content="{DynamicResource Str.Settings.ReportIssue}"
+                                            Style="{StaticResource Button.Subtle}"
+                                            Tag="{StaticResource Icon.Info}" />
+                                    </StackPanel>
+                                    <TextBlock
+                                        Margin="0,8,0,0"
+                                        Foreground="{DynamicResource Brush.Success}"
+                                        Style="{StaticResource Text.Caption}"
+                                        Text="{Binding CopyStatus}"
+                                        Visibility="{Binding CopyStatus, Converter={StaticResource NullToVisibility}}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
             </Border>
         </Grid>
 
@@ -1164,8 +1382,14 @@
                         Orientation="Horizontal">
                         <Button
                             Margin="0,0,8,0"
+                            Command="{Binding DialogCopyCommand}"
+                            Content="{Binding DialogCopyLabel}"
+                            Tag="{StaticResource Icon.Copy}"
+                            Visibility="{Binding CanCopyDialog, Converter={StaticResource BoolToVisibility}}" />
+                        <Button
+                            Margin="0,0,8,0"
                             Command="{Binding DialogCancelCommand}"
-                            Content="取消"
+                            Content="{DynamicResource Str.Dialog.Cancel}"
                             MinHeight="{StaticResource Size.Action}"
                             Visibility="{Binding IsDialogCancellable, Converter={StaticResource BoolToVisibility}}" />
                         <Button
@@ -1236,7 +1460,7 @@
                                 Click="OnZoomOut"
                                 Style="{StaticResource Button.Subtle}"
                                 Tag="{StaticResource Icon.ZoomOut}"
-                                ToolTip="缩小（减号键）" />
+                                ToolTip="{DynamicResource Str.Preview.ZoomOut}" />
                             <!--
                                 Fixed width, and the reason is not cosmetic. The number comes from
                                 the surface, which recomputes it whenever the stage is resized; if
@@ -1249,20 +1473,20 @@
                                 Click="OnZoomToggle"
                                 Content="{Binding ElementName=Comparison, Path=EffectiveZoom, Converter={StaticResource Percent}}"
                                 Style="{StaticResource Button.Subtle}"
-                                ToolTip="在原始大小与适应窗口之间切换（1 / 0）" />
+                                ToolTip="{DynamicResource Str.Preview.ZoomToggle}" />
                             <Button
                                 Width="{StaticResource Size.Control}"
                                 Click="OnZoomIn"
                                 Style="{StaticResource Button.Subtle}"
                                 Tag="{StaticResource Icon.ZoomIn}"
-                                ToolTip="放大（加号键）" />
+                                ToolTip="{DynamicResource Str.Preview.ZoomIn}" />
                             <Button
                                 Width="{StaticResource Size.Control}"
                                 Margin="8,0,0,0"
                                 Command="{Binding ClosePreviewCommand}"
                                 Style="{StaticResource Button.Subtle}"
                                 Tag="{StaticResource Icon.Dismiss}"
-                                ToolTip="关闭（Esc）" />
+                                ToolTip="{DynamicResource Str.Preview.Close}" />
                         </StackPanel>
                     </Grid>
 
@@ -1288,7 +1512,7 @@
                             SeamGlyph="{StaticResource Icon.Wipe}"
                             SeamGlyphBrush="{DynamicResource Brush.Text.OnAccent}"
                             Split="{Binding PreviewSplit}"
-                            ToolTip="拖动对比 · 双击回到中间 · 滚轮缩放 · 右键拖动平移" />
+                            ToolTip="{DynamicResource Str.Preview.SurfaceHint}" />
 
                         <!--
                             A legend rather than a label for a region: which end is which stays true
@@ -1306,7 +1530,7 @@
                             Background="{DynamicResource Brush.Bg.Flyout}"
                             IsHitTestVisible="False"
                             Style="{StaticResource Chip}">
-                            <TextBlock Style="{StaticResource Text.Caption}" Text="原图" />
+                            <TextBlock Style="{StaticResource Text.Caption}" Text="{DynamicResource Str.Preview.Original}" />
                         </Border>
                         <Border
                             Margin="10"
@@ -1315,7 +1539,7 @@
                             Background="{DynamicResource Brush.Bg.Flyout}"
                             IsHitTestVisible="False"
                             Style="{StaticResource Chip}">
-                            <TextBlock Style="{StaticResource Text.Caption}" Text="压缩后" />
+                            <TextBlock Style="{StaticResource Text.Caption}" Text="{DynamicResource Str.Preview.Compared}" />
                         </Border>
                     </Grid>
 
@@ -1343,14 +1567,14 @@
                             <Button
                                 Command="{Binding OpenResultCommand}"
                                 CommandParameter="{Binding PreviewResult}"
-                                Content="打开图片"
+                                Content="{DynamicResource Str.Preview.Open}"
                                 Style="{StaticResource Button.Subtle}"
                                 Tag="{StaticResource Icon.Image}" />
                             <Button
                                 Margin="8,0,0,0"
                                 Command="{Binding RevealResultCommand}"
                                 CommandParameter="{Binding PreviewResult}"
-                                Content="所在位置"
+                                Content="{DynamicResource Str.Preview.Reveal}"
                                 Style="{StaticResource Button.Subtle}"
                                 Tag="{StaticResource Icon.Reveal}" />
                         </StackPanel>

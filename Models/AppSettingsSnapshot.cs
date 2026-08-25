@@ -1,3 +1,5 @@
+using ImageMinify.Helpers;
+
 namespace ImageMinify.Models;
 
 /// <summary>
@@ -13,6 +15,16 @@ public record AppSettingsSnapshot
     public CompressionOptions Options { get; init; } = new();
 
     public bool IsDarkTheme { get; init; }
+
+    /// <summary>
+    /// The language the interface was in. Stored as the enum rather than an "is English" flag so the
+    /// settings file names the choice, and so a third language would be a row in the string table
+    /// rather than a change to what is persisted.
+    /// </summary>
+    public Language Language { get; init; } = Language.Chinese;
+
+    /// <summary>Whether the app quietly checks GitHub Releases after the window has opened.</summary>
+    public bool AutoCheckUpdates { get; init; } = true;
 
     /// <summary>
     /// The files and folders that were in the list when the window closed, in order. Mixed on

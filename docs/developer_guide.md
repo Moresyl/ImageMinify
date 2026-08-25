@@ -45,6 +45,8 @@ ImageMinify/
 │   ├── ImagequantNativeQuantizer.cs # imagequant 原生调用
 │   ├── ExifService.cs              # 方向校正 / 精简 / 清除
 │   ├── ThemeService.cs             # 深浅色调色板切换
+│   ├── IUpdateService.cs           # 更新服务契约
+│   ├── UpdateService.cs            # Velopack / GitHub Release 更新实现
 │   ├── ISettingsStore.cs           # 设置存储接口
 │   ├── WindowsSettingsStore.cs     # JSON 文件存储实现
 │   └── SettingsService.cs          # 设置管理服务
@@ -54,6 +56,10 @@ ImageMinify/
 │
 ├── Views/                          # 视图层
 │   └── MainWindow.xaml(.cs)        # 主窗口
+│
+├── Controls/                       # 自绘控件
+│   ├── ComparisonSurface.cs        # 前后对比舞台：擦除、缩放、平移
+│   └── ComparisonGeometry.cs       # 其几何计算（纯函数，可单测）
 │
 ├── Themes/                         # 设计系统
 │   ├── Palette.Light.xaml          # 浅色调色板
@@ -66,6 +72,11 @@ ImageMinify/
 │   ├── FileSizeFormatter.cs        # 文件大小格式化
 │   ├── PixelInspector.cs           # 像素级判定（透明度检测）
 │   ├── ReportExporter.cs           # CSV 报告导出
+│   ├── AppInfo.cs                  # 版本与项目地址
+│   ├── DiagnosticReport.cs         # 脱敏诊断信息
+│   ├── ReleaseNotesFormatter.cs    # 双语发行说明选择与格式化
+│   ├── Strings.cs                  # 界面语言切换与字符串查找
+│   ├── Strings.Table.cs            # 中英对照字符串表（一行一条）
 │   └── NativeLibraryLoader.cs      # 原生库 / 外部工具定位
 │
 ├── Interop/                        # Win32 互操作
@@ -83,6 +94,8 @@ ImageMinify/
     ├── FileSizeFormatterTests.cs
     ├── MainViewModelTests.cs
     ├── SettingsServiceTests.cs
+    ├── ComparisonGeometryTests.cs
+    ├── StringsTests.cs
     └── InMemorySettingsStore.cs    # 测试用内存存储
 ```
 
@@ -147,6 +160,47 @@ ISettingsStore (接口)
 `Themes/Palette.Light.xaml` 与 `Palette.Dark.xaml` 定义同一组键，`ThemeService` 在运行时整体替换合并字典中的调色板。所有控件模板只引用语义化的键（表面、描边、前景、强调色等），不写死颜色，因此切换主题不需要改动任何模板。
 
 排版同理：字号、间距、圆角都在 `Controls.xaml` 中集中定义，界面各处引用变量而非字面量，这是「字号统一」能持续成立的前提。
+
+### 界面语言
+
+中英两种语言共用一张表：`Helpers/Strings.Table.cs` 里一行一条，键、中文、英文写在同一行上。分成两个文件或两份资源字典也可以，但那样一条译文的两半就不在同一处，其中一边改了词而另一边没跟上时，看着文件是发现不了的。
+
+`Helpers/Strings.cs` 负责把这张表送到两类使用者手上：
+
+- **XAML** 通过 `{DynamicResource Str.Xxx}` 取字符串。切换语言时 `Strings.Apply` 整体替换合并字典中那一份，界面自行刷新 —— 与 `ThemeService` 换调色板是同一套机制，同样不重载窗口、不通知任何控件
+- **C#** 通过 `Strings.Get` / `Strings.Format` 直接读表，因此在没有 `Application` 的测试里照常可用
+
+两条约定：
+
+- **模型不存译文，只存键。** `CompressionPreset` 保存 `NameKey`，`Name` 在读取时才解析；`EngineCapabilities.PngLossless` 存的是找到的工具名，找不到时为空字符串，「未安装」这句话由显示属性在读取时补上。启动时构造一次的记录若把词句存进去，语言就被冻在了那一刻
+- **代码拼出来后存起来的文字**（摘要行、状态提示）不会像 `DynamicResource` 那样自己重解析，由 `MainViewModel.RefreshLocalizedText` 在切换后重建。`Presets` 与 `Results` 是 `ObservableCollection`，用 `items[i] = items[i]` 原地重述一遍即可让绑定重读，不必清空重填 —— 后者会闪一下空状态并丢掉选中行
+
+加一句界面文字就是加一行表。`StringsTests` 会扫描 `MainWindow.xaml`，窗口引用了而表里没有的键会导致测试失败 —— 否则界面上只是一块空白，而空白看不出是缺字符串还是布局出了问题。同一测试还会核对两种语言的占位符集合一致：译文可以调换 `{0}` `{1}` 的顺序，但不能凭空多一个（运行时抛异常）或少一个（那个数字就悄悄消失了）。
+
+### 版本、更新与诊断
+
+项目版本只在 `ImageMinify.csproj` 维护，程序集、文件版本、设置中心与发行流水线都从这里读取。应用入口 `Program.Main` 必须先执行 `VelopackApp.Build().Run()`，再启动 WPF；这是更新器处理安装、卸载与重启钩子的前提。
+
+`UpdateService` 只面向公开的 `Moresyl/ImageMinify` GitHub Release 源。开发目录不是 Velopack 管理的安装目录，因此会返回明确的“未安装构建”状态，不伪装成已经支持更新。正式包可检查更新、读取当前语言对应的发行说明、下载并由 Velopack 校验包，随后重启应用完成安装。
+
+`.github/workflows/release.yml` 是唯一发布入口：标签必须与项目版本一致，先还原、测试与自包含发布，再由固定版本的 Velopack CLI 生成安装包、便携包和更新清单，最后生成 `SHA256SUMS.txt` 并验证公开 Release 资产。若配置 `WINDOWS_CERTIFICATE_BASE64` 与 `WINDOWS_CERTIFICATE_PASSWORD`，流水线会为 Windows 文件做 Authenticode 签名；未配置时仍可发布，但 Windows 可能显示未知发布者提示。
+
+每个版本必须提供 `.github/release-notes/<version>.md`，并分别使用 `<!-- imageminify-notes:zh -->` 与 `<!-- imageminify-notes:en -->` 标记。软件只显示当前语言段，GitHub Release 保留完整双语说明。
+
+所有可预期失败都通过 `ShowExceptionAsync` 进入同一种错误对话框。界面详情和复制内容都会由 `DiagnosticReport` 脱敏：替换用户目录、API key、令牌、密码、secret 与 Bearer 凭据。诊断信息不主动读取图片内容或完整设置文件。
+
+### 前后对比舞台
+
+`ComparisonSurface` 是本项目唯一的自绘控件，直接在 `OnRender` 里把棋盘格、压缩后的图、裁到分割线左侧的原图与分割线本身画在同一个矩形上。
+
+它取代的是一叠 `Image` 元素 —— 各层宽度由转换器把容器宽度与分割比例相乘得出。那套写法在各层需要就一个布局系统并不知道的尺寸达成一致时失效，两张图错开成了并排的两张，而绑定失配在界面上不会报任何错。改成一个元素之后，「它们画在同一个矩形上」不再是一组绑定共同维持的巧合，而是代码里的同一个 `Rect` 变量。
+
+几何计算全部放在 `ComparisonGeometry` 里，是纯函数：给定图片尺寸、舞台尺寸、缩放倍率与平移量，算出图片矩形、允许的平移范围、以指针为中心缩放后的新平移量。WPF 控件在测试环境里渲染不出来，把这部分拆开，正确性就不必依赖肉眼。
+
+两个与画质判断直接相关的细节：
+
+- **原图按压缩后的像素宽解码**。两张图必须落在同一个矩形上才有可比性，而在解码器里缩一次，好过每帧重采样一张两千四百万像素的照片
+- **100% 以上用最近邻，以下用高质量插值**。平滑插值会把振铃与色块糊掉 —— 那正是这个界面存在的理由；而在 100% 以下用最近邻，会把照片混叠成两个文件都不像的样子
 
 ## 开发指南
 

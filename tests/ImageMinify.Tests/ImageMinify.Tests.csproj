@@ -31,5 +31,21 @@
     <Content Include="..\..\Themes\Palette.*.xaml" CopyToOutputDirectory="PreserveNewest">
       <Link>Themes\%(Filename)%(Extension)</Link>
     </Content>
+
+    <!-- StringsTests reads the window's markup the same way, to check that every key it asks for is
+         one the table can answer. -->
+    <Content Include="..\..\Views\MainWindow.xaml" CopyToOutputDirectory="PreserveNewest">
+      <Link>Views\MainWindow.xaml</Link>
+    </Content>
+
+    <Content Include="..\..\ImageMinify.csproj" CopyToOutputDirectory="PreserveNewest">
+      <Link>ReleaseContract\ImageMinify.csproj</Link>
+    </Content>
+    <Content Include="..\..\.github\workflows\release.yml" CopyToOutputDirectory="PreserveNewest">
+      <Link>ReleaseContract\release.yml</Link>
+    </Content>
+    <Content Include="..\..\.github\release-notes\3.0.0.md" CopyToOutputDirectory="PreserveNewest">
+      <Link>ReleaseContract\3.0.0.md</Link>
+    </Content>
   </ItemGroup>
 </Project>

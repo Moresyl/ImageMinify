@@ -1,0 +1,161 @@
+name: Release ImageMinify
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Read and validate version
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content -LiteralPath ImageMinify.csproj
+          $version = [string]$project.Project.PropertyGroup.Version
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+            throw "ImageMinify.csproj has an invalid semantic version: $version"
+          }
+          if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne "v$version") {
+            throw "Tag ${{ github.ref_name }} does not match project version v$version."
+          }
+          $notes = ".github/release-notes/$version.md"
+          if (-not (Test-Path -LiteralPath $notes)) {
+            throw "Detailed bilingual release notes are missing: $notes"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "notes=$notes" >> $env:GITHUB_OUTPUT
+
+      - name: Restore, test and publish
+        shell: pwsh
+        run: |
+          dotnet restore ImageMinify.sln --nologo
+          dotnet test ImageMinify.sln -c Release --no-restore --nologo
+          dotnet publish ImageMinify.csproj -c Release -r win-x64 --self-contained true --no-restore --nologo -o publish/win-x64
+
+      - name: Install matching Velopack CLI
+        shell: pwsh
+        run: dotnet tool install --global vpk --version 1.2.0
+
+      - name: Download previous release metadata
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force -Path Releases | Out-Null
+          $count = gh release list --repo $env:GITHUB_REPOSITORY --limit 1 --json tagName --jq length
+          if ([int]$count -gt 0) {
+            vpk download github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --token $env:GH_TOKEN --outputDir Releases
+            if ($LASTEXITCODE -ne 0) { throw 'Could not download the previous release feed.' }
+          } else {
+            Write-Host 'No previous release exists; this first release will contain a full package only.'
+          }
+
+      - name: Package installer, portable build and update feed
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $signing = @()
+          if ($env:WINDOWS_CERTIFICATE_BASE64) {
+            if (-not $env:WINDOWS_CERTIFICATE_PASSWORD) {
+              throw 'WINDOWS_CERTIFICATE_BASE64 is configured but WINDOWS_CERTIFICATE_PASSWORD is missing.'
+            }
+            [IO.File]::WriteAllBytes('windows-signing.pfx', [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+            $signing = @(
+              '--signParams',
+              "/fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f `"$PWD\windows-signing.pfx`" /p `"$env:WINDOWS_CERTIFICATE_PASSWORD`""
+            )
+            Write-Host 'Authenticode signing is enabled for this release.'
+          } else {
+            Write-Warning 'Windows signing credentials are not configured; Windows may show an unknown-publisher warning.'
+          }
+
+          $arguments = @(
+            'pack',
+            '--packId', 'ImageMinify',
+            '--packVersion', '${{ steps.version.outputs.version }}',
+            '--packDir', 'publish/win-x64',
+            '--mainExe', 'ImageMinify.exe',
+            '--packTitle', 'ImageMinify',
+            '--packAuthors', 'Moresyl',
+            '--icon', 'Assets/icon.ico',
+            '--releaseNotes', '${{ steps.version.outputs.notes }}',
+            '--runtime', 'win-x64',
+            '--outputDir', 'Releases'
+          ) + $signing
+
+          & vpk @arguments
+          if ($LASTEXITCODE -ne 0) { throw 'Velopack packaging failed.' }
+
+      - name: Create checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem -LiteralPath Releases -File |
+            Where-Object Name -ne 'SHA256SUMS.txt' |
+            Sort-Object Name |
+            ForEach-Object {
+              $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              "$hash  $($_.Name)"
+            } | Set-Content -LiteralPath Releases/SHA256SUMS.txt -Encoding utf8NoBOM
+          Get-Content -LiteralPath Releases/SHA256SUMS.txt
+
+      - name: Upload draft release through Velopack
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          vpk upload github `
+            --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" `
+            --token $env:GH_TOKEN `
+            --outputDir Releases `
+            --releaseName "ImageMinify v${{ steps.version.outputs.version }}" `
+            --tag "v${{ steps.version.outputs.version }}" `
+            --targetCommitish '${{ github.sha }}' `
+            --merge
+          if ($LASTEXITCODE -ne 0) { throw 'Velopack release upload failed.' }
+
+          gh release upload "v${{ steps.version.outputs.version }}" Releases/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --clobber
+          gh release edit "v${{ steps.version.outputs.version }}" `
+            --repo $env:GITHUB_REPOSITORY `
+            --title "ImageMinify v${{ steps.version.outputs.version }}" `
+            --notes-file '${{ steps.version.outputs.notes }}' `
+            --draft=false `
+            --prerelease=false
+
+      - name: Verify public release contract
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v${{ steps.version.outputs.version }}"
+          $release = gh release view $tag --repo $env:GITHUB_REPOSITORY --json isDraft,isPrerelease,assets,url | ConvertFrom-Json
+          if ($release.isDraft -or $release.isPrerelease) { throw "$tag was not published as a stable release." }
+          $names = @($release.assets.name)
+          foreach ($pattern in '*-Setup.exe','*-Portable.zip','*-full.nupkg','releases.win.json','SHA256SUMS.txt') {
+            if (-not ($names | Where-Object { $_ -like $pattern })) { throw "Missing release asset: $pattern" }
+          }
+          Write-Host "Verified $($names.Count) assets at $($release.url)"
