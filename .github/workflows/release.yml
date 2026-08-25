@@ -53,6 +53,7 @@ jobs:
         run: |
           dotnet restore ImageMinify.sln --nologo
           dotnet test ImageMinify.sln -c Release --no-restore --nologo
+          dotnet restore ImageMinify.csproj -r win-x64 --nologo
           dotnet publish ImageMinify.csproj -c Release -r win-x64 --self-contained true --no-restore --nologo -o publish/win-x64
 
       - name: Install matching Velopack CLI
