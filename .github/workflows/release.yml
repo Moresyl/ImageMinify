@@ -116,7 +116,7 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem -LiteralPath Releases -File |
-            Where-Object Name -ne 'SHA256SUMS.txt' |
+            Where-Object Name -notin @('SHA256SUMS.txt', 'assets.win.json') |
             Sort-Object Name |
             ForEach-Object {
               $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -158,5 +158,9 @@ jobs:
           $names = @($release.assets.name)
           foreach ($pattern in '*-Setup.exe','*-Portable.zip','*-full.nupkg','releases.win.json','SHA256SUMS.txt') {
             if (-not ($names | Where-Object { $_ -like $pattern })) { throw "Missing release asset: $pattern" }
+          }
+          foreach ($line in Get-Content -LiteralPath Releases/SHA256SUMS.txt) {
+            $assetName = $line -replace '^[0-9a-f]{64}\s{2}', ''
+            if ($assetName -notin $names) { throw "Checksum references an asset that was not uploaded: $assetName" }
           }
           Write-Host "Verified $($names.Count) assets at $($release.url)"
