@@ -48,7 +48,7 @@
 
 ## 截图
 
-![ImageMinify 主界面](Assets/screenshot.png)
+![ImageMinify 3.0.0 主界面](Assets/screenshot-v3.0.0.png)
 
 ## 最新版本
 

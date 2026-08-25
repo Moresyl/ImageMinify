@@ -48,7 +48,7 @@ This project has two versions for different use cases:
 
 ## Screenshot
 
-![ImageMinify Main Interface](Assets/screenshot.png)
+![ImageMinify 3.0.0 Main Interface](Assets/screenshot-v3.0.0.png)
 
 ## Latest Release
 
