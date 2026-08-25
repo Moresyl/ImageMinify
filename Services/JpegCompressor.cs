@@ -7,42 +7,95 @@ using SixLabors.ImageSharp.Processing;
 
 namespace ImageMinify.Services;
 
-public sealed class JpegCompressor
+public sealed class JpegCompressor : IFormatEncoder
 {
-    private readonly ExifService _exifService;
     private readonly string? _optimizerToolPath;
 
-    public JpegCompressor(ExifService exifService)
+    public JpegCompressor()
     {
-        _exifService = exifService;
-        _optimizerToolPath = ResolveOptimizerToolPath();
+        _optimizerToolPath = NativeLibraryLoader.ResolveToolPath("jpegtran.exe", "jpegtran", "mozjpeg.exe", "mozjpeg");
     }
+
+    public string Extension => ".jpg";
+
+    public bool SupportsQuality => true;
 
     public bool HasMozJpeg => !string.IsNullOrWhiteSpace(_optimizerToolPath);
 
-    public string OptimizerName => HasMozJpeg ? "MozJPEG" : "ImageSharp fallback";
+    public string OptimizerName => HasMozJpeg ? "MozJPEG" : "ImageSharp";
 
-    public void Compress(string inputPath, string outputPath, int quality)
+    /// <summary>
+    /// Composites onto white if the image has any transparency, because JPEG has no alpha channel
+    /// and an un-composited encode turns transparent pixels into whatever happened to be in the
+    /// unused colour bytes — usually black.
+    /// </summary>
+    public Image<Rgba32> Prepare(Image<Rgba32> image)
     {
-        using var image = Image.Load<Rgba32>(inputPath);
-        _exifService.NormalizeForJpegOutput(image, inputPath);
-
-        using var canvas = new Image<Rgba32>(image.Width, image.Height, Color.White);
-        canvas.Mutate(context => context.DrawImage(image, 1F));
-        canvas.Metadata.ExifProfile = image.Metadata.ExifProfile is null
-            ? null
-            : new SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifProfile(image.Metadata.ExifProfile.ToByteArray());
-        canvas.Save(outputPath, new JpegEncoder
+        if (!PixelInspector.HasTransparency(image))
         {
-            Quality = quality,
-            Interleaved = true,
-            SkipMetadata = false,
-        });
+            return image;
+        }
 
-        TryOptimizeLossless(outputPath);
+        var canvas = new Image<Rgba32>(image.Width, image.Height, Color.White);
+        canvas.Mutate(context => context.DrawImage(image, 1F));
+
+        // The composite is a new image and starts with no metadata. The pipeline has already decided
+        // what this file should carry, so carry that decision across rather than re-deciding it here.
+        canvas.Metadata.ExifProfile = image.Metadata.ExifProfile;
+        canvas.Metadata.IccProfile = image.Metadata.IccProfile;
+        return canvas;
     }
 
-    private void TryOptimizeLossless(string outputPath)
+    public void Encode(Image<Rgba32> image, Stream output, EncodeRequest request)
+    {
+        var encoder = new JpegEncoder
+        {
+            Quality = Math.Clamp(request.Quality, 1, 100),
+            Interleaved = true,
+            SkipMetadata = request.StripMetadata,
+        };
+
+        if (!request.StripMetadata)
+        {
+            image.Save(output, encoder);
+            return;
+        }
+
+        // ImageSharp's JPEG encoder writes the EXIF profile even with SkipMetadata set, so "strip
+        // metadata" has to be enforced here as well. The profiles are lifted off for the duration of
+        // the write and put straight back: the caller owns this image and encodes it again during a
+        // target-size search, so clearing them outright would silently change what the run was asked
+        // to keep. Getting this wrong writes GPS coordinates into a file the user asked to be clean.
+        var metadata = image.Metadata;
+        var exif = metadata.ExifProfile;
+        var iptc = metadata.IptcProfile;
+        var xmp = metadata.XmpProfile;
+        var icc = metadata.IccProfile;
+
+        metadata.ExifProfile = null;
+        metadata.IptcProfile = null;
+        metadata.XmpProfile = null;
+        metadata.IccProfile = null;
+
+        try
+        {
+            image.Save(output, encoder);
+        }
+        finally
+        {
+            metadata.ExifProfile = exif;
+            metadata.IptcProfile = iptc;
+            metadata.XmpProfile = xmp;
+            metadata.IccProfile = icc;
+        }
+    }
+
+    /// <summary>
+    /// Rewrites the file's entropy coding with an optimised Huffman table and a progressive scan
+    /// script. Both are lossless — not one pixel changes — and together they usually take another
+    /// 5–15% off, which is free size the encoder above cannot reach on its own.
+    /// </summary>
+    public void PostProcess(string filePath, bool stripMetadata)
     {
         var toolPath = _optimizerToolPath;
         if (toolPath is null)
@@ -50,7 +103,12 @@ public sealed class JpegCompressor
             return;
         }
 
-        var tempPath = Path.Combine(Path.GetDirectoryName(outputPath) ?? AppContext.BaseDirectory, $"{Path.GetFileNameWithoutExtension(outputPath)}.mozopt.jpg");
+        var directory = Path.GetDirectoryName(filePath) ?? AppContext.BaseDirectory;
+
+        // A GUID rather than a fixed name: the batch runs one of these per core, and two workers in
+        // the same folder would otherwise write over each other's intermediate file.
+        var tempPath = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(filePath)}.{Guid.NewGuid():N}.mozopt");
+
         try
         {
             var startInfo = new ProcessStartInfo
@@ -62,44 +120,76 @@ public sealed class JpegCompressor
                 RedirectStandardOutput = true,
             };
 
-            foreach (var argument in BuildOptimizerArguments(toolPath, tempPath, outputPath))
-            {
-                startInfo.ArgumentList.Add(argument);
-            }
+            startInfo.ArgumentList.Add("-optimize");
+            startInfo.ArgumentList.Add("-progressive");
+            startInfo.ArgumentList.Add("-copy");
+            startInfo.ArgumentList.Add(stripMetadata ? "none" : "all");
+            startInfo.ArgumentList.Add("-outfile");
+            startInfo.ArgumentList.Add(tempPath);
+            startInfo.ArgumentList.Add(filePath);
 
             using var process = Process.Start(startInfo);
-
             if (process is null)
             {
                 return;
             }
 
-            process.WaitForExit(10000);
-            if (process is { ExitCode: 0 } && File.Exists(tempPath))
+            if (!process.WaitForExit(15000))
             {
-                File.Copy(tempPath, outputPath, overwrite: true);
+                // The tool hung. Kill it and keep the encoder's own output, which is already a valid
+                // JPEG — an optimiser that never returns must not hold up the rest of the batch.
+                TryKill(process);
+                return;
+            }
+
+            if (process.ExitCode != 0 || !File.Exists(tempPath))
+            {
+                return;
+            }
+
+            // Only take the result if it is genuinely smaller. jpegtran can produce a slightly larger
+            // file from an image whose Huffman tables were already optimal, and quietly growing a
+            // file inside a compression tool is worse than doing nothing.
+            var optimisedSize = new FileInfo(tempPath).Length;
+            if (optimisedSize > 0 && optimisedSize < new FileInfo(filePath).Length)
+            {
+                File.Copy(tempPath, filePath, overwrite: true);
             }
         }
         catch
         {
-            // Lossless optimization is optional; keep the ImageSharp output when it fails.
+            // Lossless optimisation is a bonus pass. Keep the encoder's output when it is unavailable.
         }
         finally
         {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
+            TryDelete(tempPath);
         }
     }
 
-    private static string? ResolveOptimizerToolPath()
+    private static void TryKill(Process process)
     {
-        return NativeLibraryLoader.ResolveToolPath("jpegtran.exe", "jpegtran", "mozjpeg.exe", "mozjpeg");
+        try
+        {
+            process.Kill(entireProcessTree: true);
+        }
+        catch
+        {
+            // Already gone between the timeout and the kill.
+        }
     }
 
-    private static IEnumerable<string> BuildOptimizerArguments(string toolPath, string tempPath, string outputPath)
+    private static void TryDelete(string path)
     {
-        return ["-optimize", "-copy", "all", "-outfile", tempPath, outputPath];
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+            // A leftover temp file is not worth failing a compression over.
+        }
     }
 }

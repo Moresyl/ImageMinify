@@ -8,6 +8,10 @@ public record CompressionSummary
 
     public int ProcessedFiles { get; init; }
 
+    public int SkippedFiles { get; init; }
+
+    public int FailedFiles { get; init; }
+
     public long TotalOriginalSize { get; init; }
 
     public long TotalCompressedSize { get; init; }
@@ -18,19 +22,38 @@ public record CompressionSummary
 
     public double OverallCompressionRatio { get; init; }
 
-    public string TotalFilesDisplay => $"总文件数: {TotalFiles}";
+    public TimeSpan Elapsed { get; init; }
 
-    public string TotalOriginalSizeDisplay => $"压缩前总大小: {TotalOriginalSizeFormatted}";
+    public long BytesSaved => Math.Max(0, TotalOriginalSize - TotalCompressedSize);
 
-    public string TotalCompressedSizeDisplay => $"压缩后总大小: {TotalCompressedSizeFormatted}";
+    public string BytesSavedFormatted => FileSizeFormatter.Format(BytesSaved);
 
-    public string OverallCompressionRatioDisplay => $"总体压缩比例: {OverallCompressionRatio:F2}%";
+    public string OverallCompressionRatioDisplay => $"{OverallCompressionRatio:F1}%";
 
-    public static CompressionSummary FromResults(int totalFiles, int processedFiles, IEnumerable<CompressionResult> results)
+    /// <summary>Wall-clock for the run, in the largest unit that keeps it readable.</summary>
+    public string ElapsedDisplay => Elapsed.TotalSeconds < 1
+        ? $"{Elapsed.TotalMilliseconds:F0} ms"
+        : Elapsed.TotalSeconds < 60
+            ? $"{Elapsed.TotalSeconds:F1} s"
+            : $"{(int)Elapsed.TotalMinutes} 分 {Elapsed.Seconds} 秒";
+
+    public bool HasResults => TotalFiles > 0;
+
+    /// <summary>
+    /// Totals over the files that were actually rewritten. Skipped files are excluded from both
+    /// sides of the ratio on purpose: counting a file that was left alone as "0% saved" drags the
+    /// headline figure down and makes a good run on a mixed folder look like a bad one.
+    /// </summary>
+    public static CompressionSummary FromResults(
+        int totalFiles,
+        IEnumerable<CompressionResult> results,
+        TimeSpan elapsed = default)
     {
-        var successfulResults = results.Where(result => result.Success).ToList();
-        var totalOriginalSize = successfulResults.Sum(result => result.OriginalSize);
-        var totalCompressedSize = successfulResults.Sum(result => result.CompressedSize);
+        var all = results as IReadOnlyList<CompressionResult> ?? results.ToList();
+        var compressed = all.Where(result => result.State == ResultState.Compressed).ToList();
+
+        var totalOriginalSize = compressed.Sum(result => result.OriginalSize);
+        var totalCompressedSize = compressed.Sum(result => result.CompressedSize);
         var overallRatio = totalOriginalSize == 0
             ? 0
             : (1 - (double)totalCompressedSize / totalOriginalSize) * 100;
@@ -38,12 +61,15 @@ public record CompressionSummary
         return new CompressionSummary
         {
             TotalFiles = totalFiles,
-            ProcessedFiles = processedFiles,
+            ProcessedFiles = compressed.Count,
+            SkippedFiles = all.Count(result => result.State == ResultState.Skipped),
+            FailedFiles = all.Count(result => result.State == ResultState.Failed),
             TotalOriginalSize = totalOriginalSize,
             TotalCompressedSize = totalCompressedSize,
             TotalOriginalSizeFormatted = FileSizeFormatter.Format(totalOriginalSize),
             TotalCompressedSizeFormatted = FileSizeFormatter.Format(totalCompressedSize),
             OverallCompressionRatio = overallRatio,
+            Elapsed = elapsed,
         };
     }
 }

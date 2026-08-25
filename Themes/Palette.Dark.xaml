@@ -1,0 +1,144 @@
+<!--
+    The dark palette. Same keys as Palette.Light.xaml, in the same order — see that file for what
+    each group is for and why the fills are translucent.
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <sys:Boolean x:Key="Theme.IsDark">True</sys:Boolean>
+
+    <!-- ==== Backgrounds ===================================================================== -->
+
+    <Color x:Key="Color.Bg.Base">#FF1B1B1F</Color>
+
+    <SolidColorBrush x:Key="Brush.Bg.Base" Color="{StaticResource Color.Bg.Base}" />
+    <SolidColorBrush x:Key="Brush.Bg.Layer" Color="#D9282830" />
+    <SolidColorBrush x:Key="Brush.Bg.Card" Color="#8C2E2E38" />
+    <SolidColorBrush x:Key="Brush.Bg.Inset" Color="#4D16161C" />
+    <SolidColorBrush x:Key="Brush.Bg.Control" Color="#0FFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.ControlHover" Color="#1AFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.ControlPressed" Color="#0AFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.ControlDisabled" Color="#08FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.Subtle" Color="#0FFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.SubtleHover" Color="#17FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.SubtlePressed" Color="#0AFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.Selected" Color="#1FFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.Flyout" Color="#FC2C2C34" />
+    <SolidColorBrush x:Key="Brush.Bg.Scrim" Color="#8C000000" />
+
+    <!--
+        The ground under a preview. It is a drawing rather than a colour because a checker is the
+        only fill that says "there is nothing here" instead of naming a colour the image does not
+        have — and this is the one tool where a flattened alpha channel has to be obvious.
+
+        Darker than the light theme's pair and no further apart, so a picture with transparent edges
+        is not framed by a pattern brighter than the picture itself.
+    -->
+    <DrawingBrush
+        x:Key="Brush.Checkerboard"
+        TileMode="Tile"
+        Viewport="0,0,16,16"
+        ViewportUnits="Absolute">
+        <DrawingBrush.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#FF303038">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,16,16" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#FF26262D">
+                    <GeometryDrawing.Geometry>
+                        <GeometryGroup>
+                            <RectangleGeometry Rect="0,0,8,8" />
+                            <RectangleGeometry Rect="8,8,8,8" />
+                        </GeometryGroup>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+
+    <!-- ==== Text ============================================================================ -->
+
+    <SolidColorBrush x:Key="Brush.Text.Primary" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#C4FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Text.Tertiary" Color="#8FFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Text.Disabled" Color="#5CFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Text.OnAccent" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Text.Accent" Color="#FFA5A0FF" />
+
+    <!-- ==== Strokes ========================================================================= -->
+
+    <SolidColorBrush x:Key="Brush.Stroke.Subtle" Color="#12FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Stroke.Default" Color="#1FFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Stroke.Strong" Color="#38FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Stroke.Divider" Color="#17FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Stroke.Focus" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Stroke.FocusInner" Color="#FF000000" />
+
+    <SolidColorBrush x:Key="Brush.Stroke.ControlBottom" Color="#26000000" />
+
+    <!-- ==== Accent ========================================================================== -->
+
+    <!--
+        A step lighter than the light theme's indigo. The same #4F46E5 on a near-black surface reads
+        as a hole rather than a raised control, and white on it drops to 5.2:1 only once it is
+        lifted; this value keeps the hue and holds the contrast.
+    -->
+    <Color x:Key="Color.Accent">#FF5B57E8</Color>
+
+    <SolidColorBrush x:Key="Brush.Accent.Default" Color="{StaticResource Color.Accent}" />
+    <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#FF6C68EE" />
+    <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#FF4F4BD6" />
+    <SolidColorBrush x:Key="Brush.Accent.Disabled" Color="#FF3A3A46" />
+    <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#2E5B57E8" />
+    <SolidColorBrush x:Key="Brush.Accent.SubtleHover" Color="#425B57E8" />
+    <SolidColorBrush x:Key="Brush.Accent.Stroke" Color="#5C5B57E8" />
+
+    <!-- ==== Status ========================================================================== -->
+
+    <SolidColorBrush x:Key="Brush.Success" Color="#FF6CCB8B" />
+    <SolidColorBrush x:Key="Brush.Success.Bg" Color="#2E4CC47C" />
+    <SolidColorBrush x:Key="Brush.Success.Stroke" Color="#4D6CCB8B" />
+
+    <SolidColorBrush x:Key="Brush.Warning" Color="#FFF5C14E" />
+    <SolidColorBrush x:Key="Brush.Warning.Bg" Color="#2EF5C14E" />
+    <SolidColorBrush x:Key="Brush.Warning.Stroke" Color="#4DF5C14E" />
+
+    <SolidColorBrush x:Key="Brush.Danger" Color="#FFFF99A4" />
+    <SolidColorBrush x:Key="Brush.Danger.Bg" Color="#2EFF99A4" />
+    <SolidColorBrush x:Key="Brush.Danger.Stroke" Color="#4DFF99A4" />
+
+    <!-- Deep enough that the white label on it clears 4.7:1. The pale Brush.Danger above is for
+         text on a dark surface and would put white on pink if it were reused here. -->
+    <SolidColorBrush x:Key="Brush.Danger.Fill" Color="#FFCC4436" />
+    <SolidColorBrush x:Key="Brush.Danger.FillHover" Color="#FFDA5346" />
+    <SolidColorBrush x:Key="Brush.Danger.FillPressed" Color="#FFB93A2D" />
+
+    <SolidColorBrush x:Key="Brush.Info" Color="#FFA5A0FF" />
+    <SolidColorBrush x:Key="Brush.Info.Bg" Color="#2E5B57E8" />
+    <SolidColorBrush x:Key="Brush.Info.Stroke" Color="#4D5B57E8" />
+
+    <!-- ==== Elevation ======================================================================= -->
+
+    <Color x:Key="Color.Shadow">#FF000000</Color>
+
+    <DropShadowEffect
+        x:Key="Effect.Shadow.Card"
+        BlurRadius="16"
+        Direction="270"
+        Opacity="0.34"
+        ShadowDepth="2"
+        Color="{StaticResource Color.Shadow}" />
+
+    <DropShadowEffect
+        x:Key="Effect.Shadow.Flyout"
+        BlurRadius="30"
+        Direction="270"
+        Opacity="0.58"
+        ShadowDepth="7"
+        Color="{StaticResource Color.Shadow}" />
+
+</ResourceDictionary>

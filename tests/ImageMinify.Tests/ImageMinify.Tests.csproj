@@ -22,6 +22,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\\..\\ImageMinify.csproj" />
+    <ProjectReference Include="..\..\ImageMinify.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- PaletteTests reads these as XML. Copied rather than linked to a source path worked out at
+         run time, so the tests keep working from wherever the binaries are run. -->
+    <Content Include="..\..\Themes\Palette.*.xaml" CopyToOutputDirectory="PreserveNewest">
+      <Link>Themes\%(Filename)%(Extension)</Link>
+    </Content>
   </ItemGroup>
 </Project>

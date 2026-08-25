@@ -4,24 +4,41 @@ using SixLabors.ImageSharp.PixelFormats;
 
 namespace ImageMinify.Services;
 
-public sealed class WebpCompressor
+public sealed class WebpCompressor : IFormatEncoder
 {
-    private readonly ExifService _exifService;
+    /// <summary>At and above this quality WebP switches to its lossless mode.</summary>
+    private const int LosslessThreshold = 100;
 
-    public WebpCompressor(ExifService exifService)
+    public string Extension => ".webp";
+
+    public bool SupportsQuality => true;
+
+    public Image<Rgba32> Prepare(Image<Rgba32> image) => image;
+
+    public void Encode(Image<Rgba32> image, Stream output, EncodeRequest request)
     {
-        _exifService = exifService;
-    }
+        var quality = Math.Clamp(request.Quality, 1, 100);
+        var lossless = quality >= LosslessThreshold;
 
-    public void Compress(string inputPath, string outputPath, int quality)
-    {
-        using var image = Image.Load<Rgba32>(inputPath);
-        _exifService.NormalizeForNonJpegOutput(image);
-
-        image.Save(outputPath, new WebpEncoder
+        image.Save(output, new WebpEncoder
         {
             Quality = quality,
-            Method = WebpEncodingMethod.BestQuality,
+            FileFormat = lossless ? WebpFileFormatType.Lossless : WebpFileFormatType.Lossy,
+
+            // Method is WebP's speed/size dial, from 0 to 6. The top setting costs several times the
+            // CPU of the default for a few percent of size — worth paying for the file that gets
+            // kept, and not worth paying six times over for probes the search is going to discard.
+            Method = request.Fast ? WebpEncodingMethod.Level2 : WebpEncodingMethod.BestQuality,
+            SkipMetadata = request.StripMetadata,
         });
+    }
+
+    /// <summary>
+    /// Nothing to do. WebP's encoder already searches its own parameter space at
+    /// <see cref="WebpEncodingMethod.BestQuality"/>, and there is no equivalent of jpegtran or
+    /// oxipng to run over the result.
+    /// </summary>
+    public void PostProcess(string filePath, bool stripMetadata)
+    {
     }
 }

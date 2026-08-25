@@ -3,11 +3,11 @@
 ![License](https://img.shields.io/github/license/Moresyl/ImageMinify)
 ![.NET](https://img.shields.io/badge/.NET-10.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
-![UI](https://img.shields.io/badge/UI-WPF%20%2B%20WPF--UI-blueviolet)
+![UI](https://img.shields.io/badge/UI-WPF-blueviolet)
 
 [English](README_EN.md) | 中文
 
-一个简单高效的图片压缩工具，基于 C# WPF 开发，支持多种格式，提供高质量 PNG/JPEG/WebP 压缩，并具有批量处理和文件重命名功能。
+一个 Windows 桌面图片压缩工具，基于 C# WPF 开发。JPEG / PNG / WebP 三条独立压缩链路，支持目标体积反查、批量并行、缩放、元数据清理与前后对比预览。
 
 ## 相关项目
 
@@ -15,30 +15,32 @@
 
 | 版本 | 描述 | 开源地址 |
 |------|------|----------|
-| **桌面版** | 当前项目，基于 C# WPF + WPF-UI 的桌面应用 | [ImageMinify](https://github.com/Moresyl/ImageMinify) |
+| **桌面版** | 当前项目，基于 C# WPF 的桌面应用 | [ImageMinify](https://github.com/Moresyl/ImageMinify) |
 | **网页版** | 基于 React + FastAPI 的在线图片压缩工具 | [snapimg](https://github.com/Moresyl/snapimg) |
 
 ## 功能特点
 
-- **多格式支持**：支持 JPEG、PNG、WebP 等常见图片格式
-- **批量处理**：可选择整个目录或特定图片文件进行压缩
-- **格式转换**：可将图片转换为 JPEG、PNG 或 WebP 格式
-- **PNG 量化压缩**：支持 imagequant 算法 + Floyd-Steinberg 抖动
-- **JPEG 优化**：支持 MozJPEG 无损优化（环境可用时）
-- **EXIF 信息**：支持读取和保留图片 EXIF 元数据
-- **Fluent 设计**：采用 [WPF-UI](https://github.com/lepoco/wpfui) 实现现代 Fluent Design 风格
-- **文件重命名**：支持自定义前缀、分隔符和序号
-- **详细统计**：显示压缩前后的文件大小和压缩比例
-- **设置持久化**：自动保存用户偏好设置
+- **多格式支持**：输入 JPEG / PNG / BMP / WebP，输出 JPEG / PNG / WebP 或保持原格式
+- **目标体积**：填入目标 KB，引擎二分查找能落在该体积以内的最高质量，无需手动试参数
+- **预设**：网页 / 社交媒体 / 存档 / 极限压缩四组预设，参数在界面上写明，改动任一项预设高亮即取消
+- **批量并行**：按 CPU 核心数并行编码，可取消，取消后已完成的结果照常保留
+- **尺寸缩放**：按长边像素或百分比缩放，小于目标尺寸的图片不会被放大
+- **四种输出去向**：加后缀 / 写入 `compressed` 子目录 / 指定输出目录（保持子目录结构）/ 覆盖原文件
+- **变大即跳过**：重新编码已优化过的图片通常会变大，此时默认保留原文件
+- **元数据控制**：可保留、精简（仅设备 / 时间 / 软件）或彻底清除 EXIF、IPTC、XMP 与色彩配置
+- **前后对比**：结果行可打开擦除式对比预览，按住拖动即可在同一块位置上逐像素比较，透明区域衬棋盘格
+- **CSV 报告**：导出每个文件的原始 / 压缩体积、压缩率、尺寸、质量、耗时与错误
+- **原生加速**：检测到 imagequant / MozJPEG / oxipng 时自动启用，未安装则回退到 ImageSharp
+- **深浅色主题**：跟随选择持久化，界面为自绘控件模板，字号与间距统一
+- **设置持久化**：压缩参数、主题与上次的文件列表自动保存
 
 ## 技术栈
 
-- **框架**：.NET 10 + WPF
-- **UI 库**：[WPF-UI](https://github.com/lepoco/wpfui)（Fluent Design）
+- **框架**：.NET 10 + WPF（纯原生控件模板，无第三方 UI 库）
 - **图像处理**：[SixLabors.ImageSharp](https://github.com/SixLabors/ImageSharp)
 - **EXIF 读取**：[MetadataExtractor](https://github.com/drewnoakes/metadata-extractor-dotnet)
 - **MVVM**：[CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet)
-- **原生压缩**：imagequant（可选）、MozJPEG（可选）
+- **原生压缩**：imagequant、MozJPEG、oxipng（均为可选）
 
 ## 截图
 
@@ -46,9 +48,9 @@
 
 ## 最新版本
 
-**v2.1.0** - UI 优化与图标更新
+**v3.0.0** — 界面重构与压缩引擎重写
 
-从 [Releases](https://github.com/Moresyl/ImageMinify/releases/tag/v2.1.0) 下载最新版本。
+从 [Releases](https://github.com/Moresyl/ImageMinify/releases) 下载最新版本。
 
 ## 安装方法
 
@@ -77,23 +79,26 @@ dotnet run -c Release
 
 ## 使用方法
 
-1. **选择文件或目录**：
-   - 点击"选择目录"按钮选择包含图片的文件夹
-   - 或点击"选择文件"按钮选择一个或多个图片文件
+1. **添加图片**：
+   - 直接把图片或文件夹拖进窗口
+   - 或点击「添加文件」「添加文件夹」按钮
+   - 文件夹可选择是否递归处理子目录
 
-2. **选择输出格式**：
-   - 保持原格式：保持原始格式但进行优化
-   - JPEG：转换为 JPEG 格式（可调整质量）
-   - PNG：转换为优化的 PNG 格式
-   - WebP：转换为 WebP 格式
+2. **选一个预设，或自己调**：
+   - 预设：网页、社交媒体、存档、极限压缩
+   - 手动：输出格式、质量、缩放、元数据处理
+   - 或填写目标体积（KB），由引擎反查质量
 
-3. **调整设置**：
-   - 调整压缩质量滑块
-   - 如需重命名文件，勾选"启用重命名"并设置相关选项
+3. **确认输出去向**：
+   - 加后缀（默认，`_compressed`）
+   - `compressed` 子目录
+   - 指定输出目录
+   - 覆盖原文件（不可撤销，开始前会二次确认）
 
 4. **开始压缩**：
-   - 点击"开始压缩"按钮开始处理
-   - 处理完成后，可在表格中查看每个文件的压缩结果
+   - 点击「开始压缩」，进度与已完成结果实时显示，随时可取消
+   - 结果行可打开文件、定位到文件夹、或打开前后对比预览
+   - 需要留档时导出 CSV 报告
 
 ## 发布构建
 
@@ -108,28 +113,37 @@ dotnet publish -c Release -r win-x64 --self-contained true
 
 ```
 ImageMinify/
-├── App.xaml(.cs)              # 应用入口
-├── GlobalUsings.cs            # 全局 using 声明
-├── ImageMinify.csproj         # 项目文件
-├── Models/                    # 数据模型
-│   ├── CompressionResult.cs   # 压缩结果
-│   ├── CompressionSummary.cs  # 压缩统计
-│   ├── EngineCapabilities.cs  # 引擎能力
-│   └── RenameSettings.cs      # 重命名设置
-├── Services/                  # 业务服务
-│   ├── ImageCompressor.cs     # 图像压缩（主服务）
-│   ├── PngCompressor.cs       # PNG 压缩
-│   ├── JpegCompressor.cs      # JPEG 压缩
-│   ├── WebpCompressor.cs      # WebP 压缩
-│   ├── ExifService.cs         # EXIF 元数据
-│   ├── FileRenameService.cs   # 文件重命名
-│   └── SettingsService.cs     # 设置持久化
-├── ViewModels/                # 视图模型 (MVVM)
-│   └── MainViewModel.cs       # 主视图模型
-├── Views/                     # 视图
-│   └── MainWindow.xaml(.cs)   # 主窗口
-├── Helpers/                   # 工具类
-└── tests/                     # 单元测试
+├── App.xaml(.cs)                 # 应用入口
+├── GlobalUsings.cs               # 全局 using 声明
+├── ImageMinify.csproj            # 项目文件
+├── Models/                       # 数据模型
+│   ├── AppSettingsSnapshot.cs    # 持久化设置快照
+│   ├── CompressionOptions.cs     # 单次运行的全部参数
+│   ├── CompressionPreset.cs      # 内置预设
+│   ├── CompressionProgress.cs    # 进度回报
+│   ├── CompressionResult.cs      # 单张图片结果
+│   ├── CompressionSummary.cs     # 批量统计
+│   ├── EngineCapabilities.cs     # 引擎能力
+│   ├── SourceItem.cs             # 待处理的文件 / 文件夹
+│   └── StatusSeverity.cs         # 状态级别
+├── Services/                     # 业务服务
+│   ├── ImageCompressor.cs        # 压缩主服务（编排）
+│   ├── IFormatEncoder.cs         # 格式编码器接口
+│   ├── JpegCompressor.cs         # JPEG 编码 + MozJPEG
+│   ├── PngCompressor.cs          # PNG 量化 + oxipng
+│   ├── WebpCompressor.cs         # WebP 编码
+│   ├── BmpPassthroughEncoder.cs  # BMP 直通
+│   ├── ExifService.cs            # EXIF 保留 / 精简 / 清除
+│   ├── ThemeService.cs           # 深浅色主题
+│   └── SettingsService.cs        # 设置持久化
+├── ViewModels/                   # 视图模型 (MVVM)
+│   └── MainViewModel.cs          # 主视图模型
+├── Views/                        # 视图
+│   └── MainWindow.xaml(.cs)      # 主窗口
+├── Themes/                       # 调色板、控件模板、图标
+├── Helpers/                      # 工具类
+├── Interop/                      # 窗口边框等 Win32 调用
+└── tests/                        # 单元测试
 ```
 
 ## 贡献
@@ -143,6 +157,6 @@ ImageMinify/
 ## 致谢
 
 - [SixLabors.ImageSharp](https://github.com/SixLabors/ImageSharp) - 跨平台图像处理
-- [WPF-UI](https://github.com/lepoco/wpfui) - Fluent Design WPF 控件库
 - [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) - MVVM 工具包
 - [MetadataExtractor](https://github.com/drewnoakes/metadata-extractor-dotnet) - 图片元数据读取
+- [imagequant](https://github.com/ImageOptim/libimagequant) / [MozJPEG](https://github.com/mozilla/mozjpeg) / [oxipng](https://github.com/shssoichiro/oxipng) - 可选的原生压缩加速

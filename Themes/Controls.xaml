@@ -1,0 +1,1054 @@
+<!--
+    The control library.
+
+    Every style here is built from the palette tokens and nothing else — search this file for a hex
+    colour and you should find only the two the close button is required to use. Palette brushes are
+    referenced with DynamicResource because ThemeService swaps the palette dictionary underneath a
+    running window; a StaticResource would freeze the first theme in place until restart.
+
+    Icons.xaml is merged in here rather than in App.xaml: a StaticResource inside a merged dictionary
+    can only see its own dictionary and the ones it merges itself, never a sibling. Views still reach
+    the icons through the normal element-tree lookup.
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Icons.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+    <!--
+        ==== Metrics ==========================================================================
+
+        Every size in the application resolves to one of these. They are gathered here rather than
+        written into the styles because density is a single decision, not fifty. Nothing in a view
+        may hard-code a number behind this file's back.
+    -->
+
+    <CornerRadius x:Key="Radius.Small">3</CornerRadius>
+    <CornerRadius x:Key="Radius.Medium">5</CornerRadius>
+    <CornerRadius x:Key="Radius.Large">8</CornerRadius>
+    <CornerRadius x:Key="Radius.XLarge">10</CornerRadius>
+
+    <!--
+        There is deliberately no Radius.Pill. WPF does not clamp a CornerRadius to half the side it
+        sits on the way CSS does — give a 4px-tall rail a radius of 999 and the four arcs overrun
+        each other, and what draws is a lens rather than a capsule. A capsule is therefore written as
+        half its own height at the one place that knows that height, and each of those sites says so.
+    -->
+
+    <!-- Heights. Control is what a button, a text box and a segmented group all share, so they line
+         up in a row without anyone setting a height by hand. -->
+    <sys:Double x:Key="Size.Control">30</sys:Double>
+    <sys:Double x:Key="Size.Control.Small">24</sys:Double>
+    <sys:Double x:Key="Size.Action">36</sys:Double>
+    <sys:Double x:Key="Size.Row">30</sys:Double>
+    <sys:Double x:Key="Size.Caption">38</sys:Double>
+
+    <sys:Double x:Key="Size.Icon">14</sys:Double>
+    <sys:Double x:Key="Size.Icon.Small">11</sys:Double>
+
+    <!--
+        ==== Type ramp ========================================================================
+
+        Five sizes, and no sixth. 12 is the Windows shell's own body size (9pt) and everything else
+        is placed relative to it. A view never writes a FontSize: it picks one of the Text.* styles
+        below, which is what keeps the whole surface on one ramp.
+    -->
+    <sys:Double x:Key="Font.Size.Caption">11</sys:Double>
+    <sys:Double x:Key="Font.Size.Body">12</sys:Double>
+    <sys:Double x:Key="Font.Size.Subtitle">14</sys:Double>
+    <sys:Double x:Key="Font.Size.Title">18</sys:Double>
+    <sys:Double x:Key="Font.Size.Display">21</sys:Double>
+
+    <!--
+        ==== Spacing ==========================================================================
+
+        Inset.Card is the distance from a card's edge to its content, and it is the same number on
+        every card in the application. That single figure is what puts the section labels, the field
+        text and the table's first column on one vertical rule down the whole window.
+    -->
+    <Thickness x:Key="Pad.Control">10,0</Thickness>
+    <Thickness x:Key="Inset.Card">16</Thickness>
+    <Thickness x:Key="Inset.Card.Tight">12</Thickness>
+
+    <!--
+        ==== Typography =======================================================================
+
+        Segoe UI Variable is the Windows 11 face, Segoe UI covers Windows 10, and Microsoft YaHei UI
+        carries the Chinese text on both. WPF walks this list per glyph, so a mixed-script string
+        picks the right face for each character with no per-culture switching — and, usefully here,
+        digits inside Chinese labels are drawn by Segoe rather than YaHei, which is what lets the
+        tabular-figures setting below actually take effect.
+    -->
+    <FontFamily x:Key="Font.Family">Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI, sans-serif</FontFamily>
+    <FontFamily x:Key="Font.Family.Display">Segoe UI Variable Display, Segoe UI, Microsoft YaHei UI, sans-serif</FontFamily>
+
+    <Style x:Key="Text.Body" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Family}" />
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
+    </Style>
+
+    <Style x:Key="Text.BodyStrong" TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="Text.Secondary" TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+    </Style>
+
+    <Style x:Key="Text.Caption" TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Caption}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Tertiary}" />
+    </Style>
+
+    <!--
+        The label above a group of controls, and the header above a table column: small, semi-bold
+        and quiet rather than large and loud. Letter-spaced by a third of a pixel, which at 11px is
+        what stops an all-caps-weight label from reading as a solid block.
+    -->
+    <Style x:Key="Text.Section" TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Caption}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Tertiary}" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
+    </Style>
+
+    <Style x:Key="Text.Subtitle" TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Family.Display}" />
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Subtitle}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="Text.Title" TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Family.Display}" />
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Title}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!--
+        ==== Figures ==========================================================================
+
+        Anything whose value changes while you watch it — a file size, a percentage, a running count
+        — is set in tabular figures, so every digit occupies the same advance width. With
+        proportional figures a 1 is narrower than a 0, so a column of sizes shifts sideways on each
+        update and a right-aligned number never quite settles under the one above it. This is the
+        single most visible piece of optical alignment in the window, and it costs one property.
+    -->
+    <Style x:Key="Text.Numeric" TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+        <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+    </Style>
+
+    <Style x:Key="Text.Numeric.Secondary" TargetType="TextBlock" BasedOn="{StaticResource Text.Numeric}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+    </Style>
+
+    <!-- The large figure on a summary tile. Display face, tabular, and one notch tighter than the
+         default tracking because at 21px the default gap between digits reads as a space. -->
+    <Style x:Key="Text.Metric" TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Family.Display}" />
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Display}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+    </Style>
+
+    <!-- ==== Focus =========================================================================== -->
+
+    <!--
+        The Windows 11 focus ring: a dark line with a light one inside it, so the same rectangle
+        stays visible whether the control sits on a pale card or a dark one.
+    -->
+    <Style x:Key="Focus.Visual">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Grid Margin="-2">
+                        <Border
+                            BorderBrush="{DynamicResource Brush.Stroke.Focus}"
+                            BorderThickness="2"
+                            CornerRadius="7"
+                            SnapsToDevicePixels="True" />
+                        <Border
+                            Margin="2"
+                            BorderBrush="{DynamicResource Brush.Stroke.FocusInner}"
+                            BorderThickness="1"
+                            CornerRadius="5"
+                            SnapsToDevicePixels="True" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ==== Icons =========================================================================== -->
+
+    <Style x:Key="Icon" TargetType="Path">
+        <Setter Property="Width" Value="{StaticResource Size.Icon}" />
+        <Setter Property="Height" Value="{StaticResource Size.Icon}" />
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="Fill" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <Style x:Key="Icon.Secondary" TargetType="Path" BasedOn="{StaticResource Icon}">
+        <Setter Property="Fill" Value="{DynamicResource Brush.Text.Secondary}" />
+    </Style>
+
+    <Style x:Key="Icon.Accent" TargetType="Path" BasedOn="{StaticResource Icon}">
+        <Setter Property="Fill" Value="{DynamicResource Brush.Accent.Default}" />
+    </Style>
+
+    <!-- ==== Buttons ========================================================================= -->
+
+    <!--
+        One template for every framed button. An optional leading glyph comes from Tag, which keeps
+        `<Button Tag="{StaticResource Icon.Folder}" Content="选择目录"/>` to a single line and makes
+        the glyph follow Foreground through every state without a second brush to maintain.
+
+        The glyph's margin is 7 on the right and half a pixel of lift on the top. A 14px glyph
+        centred on a 12px line box sits visually low, because the line box includes descender space
+        the glyph does not use; lifting it by half a pixel puts its optical centre on the text's
+        x-height, which is where the eye reads the pair as level.
+    -->
+    <ControlTemplate x:Key="Button.Template" TargetType="ButtonBase">
+        <Border
+            x:Name="Root"
+            Background="{TemplateBinding Background}"
+            BorderBrush="{TemplateBinding BorderBrush}"
+            BorderThickness="{TemplateBinding BorderThickness}"
+            CornerRadius="{StaticResource Radius.Medium}"
+            SnapsToDevicePixels="True">
+            <StackPanel
+                Margin="{TemplateBinding Padding}"
+                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                VerticalAlignment="Center"
+                Orientation="Horizontal">
+                <Path
+                    x:Name="Glyph"
+                    Margin="0,-0.5,7,0"
+                    Data="{TemplateBinding Tag}"
+                    Fill="{TemplateBinding Foreground}"
+                    Style="{StaticResource Icon}" />
+                <ContentPresenter
+                    x:Name="Label"
+                    VerticalAlignment="Center"
+                    RecognizesAccessKey="True"
+                    SnapsToDevicePixels="True" />
+            </StackPanel>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="Tag" Value="{x:Null}">
+                <Setter TargetName="Glyph" Property="Visibility" Value="Collapsed" />
+            </Trigger>
+            <Trigger Property="Content" Value="{x:Null}">
+                <Setter TargetName="Glyph" Property="Margin" Value="0" />
+                <Setter TargetName="Label" Property="Visibility" Value="Collapsed" />
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.ControlHover}" />
+                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Strong}" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.ControlPressed}" />
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.ControlDisabled}" />
+                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Subtle}" />
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Disabled}" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!--
+        A button whose face is only an icon has no text for a screen reader to read, so it would be
+        announced as an anonymous "button". Its tooltip is already the label a sighted user gets on
+        hover, so it is bound through as the accessible name as well and the two can never drift
+        apart. Buttons carrying visible text have no tooltip; the binding then yields null, the name
+        is left unset, and the automation peer falls back to the content.
+    -->
+    <Style TargetType="Button">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Family}" />
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Control}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Default}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="{StaticResource Pad.Control}" />
+        <Setter Property="MinHeight" Value="{StaticResource Size.Control}" />
+        <Setter Property="MinWidth" Value="72" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Focus.Visual}" />
+        <Setter Property="Template" Value="{StaticResource Button.Template}" />
+        <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip, RelativeSource={RelativeSource Self}}" />
+    </Style>
+
+    <!--
+        The one button on the window that does the thing the window exists for. Taller than a normal
+        control, filled, and with no border of its own: the fill is the frame.
+    -->
+    <Style x:Key="Button.Accent" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Accent.Default}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="MinHeight" Value="{StaticResource Size.Action}" />
+        <Setter Property="Padding" Value="14,0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ButtonBase">
+                    <Border
+                        x:Name="Root"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{StaticResource Radius.Medium}"
+                        SnapsToDevicePixels="True">
+                        <StackPanel
+                            Margin="{TemplateBinding Padding}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                            <!--
+                                A triangle is the one glyph that cannot be centred arithmetically.
+                                Its mass sits behind its leading edge, so a play mark boxed dead
+                                centre reads as if it has slipped left; the extra pixel of left
+                                margin over the right puts its centre of area where the eye expects
+                                the centre of the shape to be.
+                            -->
+                            <Path
+                                x:Name="Glyph"
+                                Margin="1,-0.5,8,0"
+                                Data="{TemplateBinding Tag}"
+                                Fill="{TemplateBinding Foreground}"
+                                Style="{StaticResource Icon}" />
+                            <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True" />
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Tag" Value="{x:Null}">
+                            <Setter TargetName="Glyph" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Accent.Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Accent.Pressed}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Accent.Disabled}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Disabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        The accent button's shape in the danger colour, for the one button that destroys something.
+        Red rather than "the accent, but you were warned": a confirm button that looks exactly like
+        every other confirm button in the application is the reason people click through warnings.
+    -->
+    <Style x:Key="Button.Danger" TargetType="Button" BasedOn="{StaticResource Button.Accent}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Danger.Fill}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ButtonBase">
+                    <Border
+                        x:Name="Root"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{StaticResource Radius.Medium}"
+                        SnapsToDevicePixels="True">
+                        <StackPanel
+                            Margin="{TemplateBinding Padding}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                            <Path
+                                x:Name="Glyph"
+                                Margin="0,-0.5,8,0"
+                                Data="{TemplateBinding Tag}"
+                                Fill="{TemplateBinding Foreground}"
+                                Style="{StaticResource Icon}" />
+                            <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True" />
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Tag" Value="{x:Null}">
+                            <Setter TargetName="Glyph" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <!-- Named colours rather than an opacity change: the button sits on a
+                             translucent card over Mica, so fading it would let the desktop through
+                             and take the white label's contrast with it. -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Danger.FillHover}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Danger.FillPressed}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Accent.Disabled}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Disabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- No fill until you point at it. For places where a framed button would be noise. -->
+    <Style x:Key="Button.Subtle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+        <Setter Property="MinWidth" Value="0" />
+    </Style>
+
+    <Style x:Key="Button.Icon.Small" TargetType="Button" BasedOn="{StaticResource Button.Subtle}">
+        <Setter Property="Width" Value="{StaticResource Size.Control.Small}" />
+        <Setter Property="Height" Value="{StaticResource Size.Control.Small}" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <!-- ==== Window buttons ================================================================== -->
+
+    <!--
+        46 wide is what every Windows 11 caption strip uses, so the buttons land where muscle memory
+        expects them and their hover plates line up with the ones next door.
+    -->
+    <Style x:Key="Button.Window" TargetType="Button">
+        <Setter Property="Width" Value="46" />
+        <Setter Property="Height" Value="{StaticResource Size.Caption}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+        <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+        <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip, RelativeSource={RelativeSource Self}}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root" Background="{TemplateBinding Background}">
+                        <Path
+                            x:Name="Glyph"
+                            Width="10"
+                            Height="10"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Data="{TemplateBinding Tag}"
+                            Fill="{TemplateBinding Foreground}"
+                            SnapsToDevicePixels="True"
+                            Stretch="Uniform" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.SubtleHover}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.SubtlePressed}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        Red on hover, as every Windows window has done since 8. These are the only two literal
+        colours in the file: the close button's plate is the same red in both themes, because it is
+        a Windows convention rather than a decision this application gets to make.
+    -->
+    <Style x:Key="Button.Window.Close" TargetType="Button" BasedOn="{StaticResource Button.Window}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root" Background="{TemplateBinding Background}">
+                        <Path
+                            x:Name="Glyph"
+                            Width="10"
+                            Height="10"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Data="{TemplateBinding Tag}"
+                            Fill="{TemplateBinding Foreground}"
+                            SnapsToDevicePixels="True"
+                            Stretch="Uniform" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="#FFC42B1C" />
+                            <Setter TargetName="Glyph" Property="Fill" Value="#FFFFFFFF" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="#FFB2271A" />
+                            <Setter TargetName="Glyph" Property="Fill" Value="#FFFFFFFF" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ==== Segmented picker ================================================================ -->
+
+    <!--
+        Four mutually exclusive output formats, shown as four segments rather than hidden inside a
+        drop-down. The whole choice is legible without a click, the selected one is where it was
+        last time, and the window gains one less popup.
+    -->
+    <Style x:Key="Segment" TargetType="RadioButton">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Family}" />
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Focus.Visual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border
+                        x:Name="Root"
+                        Height="26"
+                        Background="Transparent"
+                        CornerRadius="{StaticResource Radius.Small}"
+                        SnapsToDevicePixels="True">
+                        <ContentPresenter
+                            Margin="8,0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.SubtleHover}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.Card}" />
+                            <Setter TargetName="Root" Property="Effect" Value="{DynamicResource Effect.Shadow.Card}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Disabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The tray a row of segments sits in. -->
+    <Style x:Key="Segment.Group" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Subtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Subtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius.Medium}" />
+        <Setter Property="Padding" Value="2" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <!-- ==== Toggle switch =================================================================== -->
+
+    <!--
+        A switch rather than a check box for every on/off setting in the rail.
+        <see cref="System.Windows.Controls.CheckBox"/> has no style in this file at all, which is
+        deliberate: a check box reads as "selected" — one of several things you are ticking — while
+        every one of these settings is a state the next run will be in. The switch says that, and it
+        says it at a glance from across the window, which a 14px tick mark does not.
+
+        Sized 38x20 with a 20px travel, so the knob crosses its own diameter and the movement is
+        legible as movement rather than a twitch.
+    -->
+    <Style x:Key="Switch" TargetType="ToggleButton">
+        <Setter Property="Width" Value="38" />
+        <Setter Property="Height" Value="20" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Focus.Visual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <!-- 10 is half of 20, which is this track's capsule; see the note on Radius. -->
+                    <Border
+                        x:Name="Track"
+                        Background="{DynamicResource Brush.Bg.Control}"
+                        BorderBrush="{DynamicResource Brush.Stroke.Strong}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        SnapsToDevicePixels="True">
+                        <Ellipse
+                            x:Name="Knob"
+                            Width="12"
+                            Height="12"
+                            Margin="3,0,0,0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Fill="{DynamicResource Brush.Text.Secondary}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource Brush.Bg.ControlHover}" />
+                            <Setter TargetName="Knob" Property="Width" Value="14" />
+                            <Setter TargetName="Knob" Property="Height" Value="14" />
+                            <Setter TargetName="Knob" Property="Margin" Value="2,0,0,0" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource Brush.Accent.Default}" />
+                            <Setter TargetName="Track" Property="BorderBrush" Value="Transparent" />
+                            <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource Brush.Text.OnAccent}" />
+                            <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                            <Setter TargetName="Knob" Property="Margin" Value="0,0,3,0" />
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsChecked" Value="True" />
+                                <Condition Property="IsMouseOver" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource Brush.Accent.Hover}" />
+                            <Setter TargetName="Knob" Property="Margin" Value="0,0,2,0" />
+                        </MultiTrigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource Brush.Bg.ControlDisabled}" />
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Subtle}" />
+                            <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource Brush.Text.Disabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ==== Text input ====================================================================== -->
+
+    <Style TargetType="TextBox">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Family}" />
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Control}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Default}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CaretBrush" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource Brush.Accent.Default}" />
+        <Setter Property="SelectionOpacity" Value="0.4" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="MinHeight" Value="{StaticResource Size.Control}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Grid>
+                        <Border
+                            x:Name="Root"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource Radius.Medium}"
+                            SnapsToDevicePixels="True">
+                            <ScrollViewer
+                                x:Name="PART_ContentHost"
+                                Margin="{TemplateBinding Padding}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                Focusable="False"
+                                HorizontalScrollBarVisibility="Hidden"
+                                VerticalScrollBarVisibility="Hidden" />
+                        </Border>
+                        <!--
+                            The 2px accent line under a focused box, which is the Windows 11 signal
+                            that typing goes here. Drawn over the border rather than replacing it, so
+                            the box does not change size — and therefore does not nudge its
+                            neighbours — when it takes focus.
+                        -->
+                        <Border
+                            x:Name="Underline"
+                            Height="2"
+                            Margin="1,0,1,0"
+                            VerticalAlignment="Bottom"
+                            Background="{DynamicResource Brush.Accent.Default}"
+                            CornerRadius="0,0,4,4"
+                            Visibility="Collapsed" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.ControlHover}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.ControlHover}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Strong}" />
+                            <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.ControlDisabled}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Subtle}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Disabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ==== Slider ========================================================================== -->
+
+    <!--
+        The filled half of the rail. It is the track's decrease button, which is the only element
+        the Track lays out against the current value — so the fill follows the thumb without a
+        binding, a converter or a width calculation anywhere.
+
+        The Track ends the decrease button at the thumb's *leading* edge, which would leave a
+        9px notch of unfilled rail under the thumb. The negative right margin is exactly half the
+        thumb, so the fill runs to the thumb's centre and the joint is invisible.
+    -->
+    <Style x:Key="Slider.Fill" TargetType="RepeatButton">
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border
+                        Height="4"
+                        Margin="0,0,-9,0"
+                        VerticalAlignment="Center"
+                        Background="{DynamicResource Brush.Accent.Default}"
+                        CornerRadius="2" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The unfilled half. It draws nothing; the rail underneath shows through. Kept in the
+         template because it is what makes clicking the empty track page the value along. -->
+    <Style x:Key="Slider.Page" TargetType="RepeatButton">
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        The Windows 11 thumb: an accent disc with a light core. The core grows on hover and shrinks
+        under the press, which is the whole of the control's feedback — the disc itself never moves
+        off the rail's centre line, so the value never appears to drift while you are grabbing it.
+    -->
+    <Style x:Key="Slider.Thumb" TargetType="Thumb">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Grid Width="18" Height="18">
+                        <Ellipse Fill="{DynamicResource Brush.Accent.Default}" />
+                        <Ellipse
+                            x:Name="Core"
+                            Width="8"
+                            Height="8"
+                            Fill="{DynamicResource Brush.Text.OnAccent}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Core" Property="Width" Value="10" />
+                            <Setter TargetName="Core" Property="Height" Value="10" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Core" Property="Width" Value="6" />
+                            <Setter TargetName="Core" Property="Height" Value="6" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="Slider">
+        <Setter Property="MinHeight" Value="{StaticResource Size.Control}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="IsMoveToPointEnabled" Value="True" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Focus.Visual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <!-- Transparent rather than unset: an unfilled Grid is not hit-testable, and the
+                         click that should page the value would fall through to the card behind. -->
+                    <Grid x:Name="Root" Background="Transparent">
+                        <Border
+                            x:Name="Rail"
+                            Height="4"
+                            VerticalAlignment="Center"
+                            Background="{DynamicResource Brush.Bg.Subtle}"
+                            BorderBrush="{DynamicResource Brush.Stroke.Subtle}"
+                            BorderThickness="1"
+                            CornerRadius="2" />
+                        <Track x:Name="PART_Track">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="Slider.DecreaseLarge" Style="{StaticResource Slider.Fill}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource Slider.Thumb}" />
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="Slider.IncreaseLarge" Style="{StaticResource Slider.Page}" />
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.4" />
+                            <Setter TargetName="Root" Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ==== Progress ======================================================================== -->
+
+    <Style TargetType="ProgressBar">
+        <Setter Property="Height" Value="4" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Subtle}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Default}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <!-- The bar is 4 tall, so 2 rounds the ends and nothing more. -->
+                    <Border
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="2"
+                        SnapsToDevicePixels="True">
+                        <Grid ClipToBounds="True">
+                            <Border x:Name="PART_Track" Background="Transparent" />
+                            <Border
+                                x:Name="PART_Indicator"
+                                HorizontalAlignment="Left"
+                                Background="{TemplateBinding Foreground}"
+                                CornerRadius="2" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ==== Scroll bars ===================================================================== -->
+
+    <Style x:Key="ScrollBar.Thumb" TargetType="Thumb">
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <!-- The bar is 10 wide and the margin takes 2 off each side, leaving a 6px
+                         thumb: a radius of 3 is its capsule, and anything larger bows it. -->
+                    <Border
+                        Margin="2"
+                        Background="{DynamicResource Brush.Text.Tertiary}"
+                        CornerRadius="3" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A thin overlay bar with no arrow buttons. The repeat buttons stay in the template — they
+         are what makes clicking the empty half of the track page up and down — but draw nothing. -->
+    <Style x:Key="ScrollBar.Page" TargetType="RepeatButton">
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Width" Value="10" />
+        <Setter Property="MinWidth" Value="10" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Border x:Name="Root" Background="{TemplateBinding Background}">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageUpCommand" Style="{StaticResource ScrollBar.Page}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource ScrollBar.Thumb}" />
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageDownCommand" Style="{StaticResource ScrollBar.Page}" />
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.Subtle}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ==== Result rows ===================================================================== -->
+
+    <Style TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <Border
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}">
+                        <ScrollViewer Padding="{TemplateBinding Padding}" Focusable="False">
+                            <ItemsPresenter />
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        A table row rather than a list entry: a fixed height so the columns of figures form even
+        bands, and no vertical gap between containers so a run of rows reads as one block instead of
+        a dotted line of them. Selection is not meaningful here — the rows are a report, not a
+        picker — so only hover is drawn.
+    -->
+    <Style x:Key="Row" TargetType="ListBoxItem">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Family}" />
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="Height" Value="{StaticResource Size.Row}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border
+                        x:Name="Root"
+                        Background="Transparent"
+                        SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg.SubtleHover}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ==== Surfaces ======================================================================== -->
+
+    <Style x:Key="Card" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Card}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Subtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius.Large}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <Style x:Key="Panel" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Layer}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Subtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius.XLarge}" />
+        <Setter Property="Effect" Value="{DynamicResource Effect.Shadow.Card}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <!-- A recess rather than a raise: for the well the result rows sit in. -->
+    <Style x:Key="Inset" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Inset}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Subtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius.Large}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <Style x:Key="Divider" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Stroke.Divider}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <!-- ==== Chips =========================================================================== -->
+
+    <!-- Padding of 1 above and below an 11px caption line, plus the border, comes to 19 — so 9.5 is
+         this chip's capsule and any larger figure bows its ends. -->
+    <Style x:Key="Chip" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Subtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke.Subtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="9.5" />
+        <Setter Property="Padding" Value="8,1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <Style x:Key="Chip.Accent" TargetType="Border" BasedOn="{StaticResource Chip}">
+        <Setter Property="Background" Value="{DynamicResource Brush.Accent.Subtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent.Stroke}" />
+    </Style>
+
+    <Style x:Key="Chip.Success" TargetType="Border" BasedOn="{StaticResource Chip}">
+        <Setter Property="Background" Value="{DynamicResource Brush.Success.Bg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Success.Stroke}" />
+    </Style>
+
+    <!-- ==== Tooltips ======================================================================== -->
+
+    <Style TargetType="ToolTip">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Family}" />
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Caption}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="HasDropShadow" Value="False" />
+        <Setter Property="Placement" Value="Bottom" />
+        <Setter Property="VerticalOffset" Value="6" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <!-- The margin is the shadow's room to fall into. A popup is sized to its
+                         content, so without it the blur is clipped at the edge of the window. -->
+                    <Border
+                        Margin="8"
+                        Padding="9,5"
+                        Background="{DynamicResource Brush.Bg.Flyout}"
+                        BorderBrush="{DynamicResource Brush.Stroke.Default}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource Radius.Medium}"
+                        Effect="{DynamicResource Effect.Shadow.Flyout}">
+                        <ContentPresenter />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

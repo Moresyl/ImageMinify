@@ -2,13 +2,37 @@
     x:Class="ImageMinify.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    xmlns:helpers="clr-namespace:ImageMinify.Helpers">
     <Application.Resources>
         <ResourceDictionary>
+            <!--
+                Order matters. The palette goes in first so the control styles can resolve its keys,
+                and ThemeService swaps it by index at runtime — index 0, and nothing may be inserted
+                before it.
+
+                Controls.xaml merges Icons.xaml itself: sibling dictionaries in the same merge list
+                cannot see each other's keys through StaticResource, only through the parent.
+            -->
             <ResourceDictionary.MergedDictionaries>
-                <ui:ThemesDictionary Theme="Light" />
-                <ui:ControlsDictionary />
+                <ResourceDictionary Source="Themes/Palette.Light.xaml" />
+                <ResourceDictionary Source="Themes/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!--
+                Converters live in the root dictionary rather than the merged ones. A merged
+                dictionary is replaced wholesale when the theme changes, and a converter has no
+                business being rebuilt because the colours moved.
+            -->
+            <helpers:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <helpers:InverseBoolConverter x:Key="InverseBool" />
+            <helpers:EqualityConverter x:Key="Equality" />
+            <helpers:MultiEqualityConverter x:Key="MultiEquality" />
+            <helpers:NullToVisibilityConverter x:Key="NullToVisibility" />
+            <helpers:CountToVisibilityConverter x:Key="CountToVisibility" />
+            <helpers:SeverityToBrushConverter x:Key="SeverityToBrush" />
+            <helpers:SeverityToGeometryConverter x:Key="SeverityToGeometry" />
+            <helpers:ResultStateToBrushConverter x:Key="ResultStateToBrush" />
+            <helpers:PercentConverter x:Key="Percent" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

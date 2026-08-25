@@ -1,0 +1,163 @@
+<!--
+    The light palette.
+
+    Every colour the application draws with is declared here and in Palette.Dark.xaml, and the two
+    files declare exactly the same keys. Nothing outside these two files may name a colour — that is
+    what makes switching themes a dictionary swap instead of a hunt through the views.
+
+    Many fills are deliberately translucent, and they layer over Brush.Bg.Base — which is opaque, and
+    is the one fill that must stay that way. It is the window's ground; every other surface here is
+    tinted glass stacked on top of it, so a translucent base would leave the whole window with
+    nothing behind it.
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <!-- The marker ThemeService reads to know which palette is live. -->
+    <sys:Boolean x:Key="Theme.IsDark">False</sys:Boolean>
+
+    <!-- ==== Backgrounds ===================================================================== -->
+
+    <Color x:Key="Color.Bg.Base">#FFF4F4F6</Color>
+
+    <SolidColorBrush x:Key="Brush.Bg.Base" Color="{StaticResource Color.Bg.Base}" />
+    <SolidColorBrush x:Key="Brush.Bg.Layer" Color="#D9FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.Card" Color="#B8FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.Inset" Color="#59FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.Control" Color="#B3FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.ControlHover" Color="#E6FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Bg.ControlPressed" Color="#8CF7F7F9" />
+    <SolidColorBrush x:Key="Brush.Bg.ControlDisabled" Color="#4DF7F7F9" />
+    <SolidColorBrush x:Key="Brush.Bg.Subtle" Color="#0A000000" />
+    <SolidColorBrush x:Key="Brush.Bg.SubtleHover" Color="#12000000" />
+    <SolidColorBrush x:Key="Brush.Bg.SubtlePressed" Color="#08000000" />
+    <SolidColorBrush x:Key="Brush.Bg.Selected" Color="#14000000" />
+    <SolidColorBrush x:Key="Brush.Bg.Flyout" Color="#FCFAFAFC" />
+    <SolidColorBrush x:Key="Brush.Bg.Scrim" Color="#59000000" />
+
+    <!--
+        The ground under a preview. It is a drawing rather than a colour because a checker is the
+        only fill that says "there is nothing here" instead of naming a colour the image does not
+        have — and this is the one tool where a flattened alpha channel has to be obvious.
+
+        The two greys are a shade apart on purpose. Any more contrast and the pattern reads as part
+        of the picture sitting on top of it.
+    -->
+    <DrawingBrush
+        x:Key="Brush.Checkerboard"
+        TileMode="Tile"
+        Viewport="0,0,16,16"
+        ViewportUnits="Absolute">
+        <DrawingBrush.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#FFFFFFFF">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,16,16" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#FFE4E4EA">
+                    <GeometryDrawing.Geometry>
+                        <GeometryGroup>
+                            <RectangleGeometry Rect="0,0,8,8" />
+                            <RectangleGeometry Rect="8,8,8,8" />
+                        </GeometryGroup>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+
+    <!-- ==== Text ============================================================================ -->
+
+    <SolidColorBrush x:Key="Brush.Text.Primary" Color="#E4000000" />
+    <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#9E000000" />
+    <SolidColorBrush x:Key="Brush.Text.Tertiary" Color="#70000000" />
+    <SolidColorBrush x:Key="Brush.Text.Disabled" Color="#48000000" />
+    <SolidColorBrush x:Key="Brush.Text.OnAccent" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="Brush.Text.Accent" Color="#FF4038C9" />
+
+    <!-- ==== Strokes ========================================================================= -->
+
+    <SolidColorBrush x:Key="Brush.Stroke.Subtle" Color="#0F000000" />
+    <SolidColorBrush x:Key="Brush.Stroke.Default" Color="#1F000000" />
+    <SolidColorBrush x:Key="Brush.Stroke.Strong" Color="#2E000000" />
+    <SolidColorBrush x:Key="Brush.Stroke.Divider" Color="#12000000" />
+    <SolidColorBrush x:Key="Brush.Stroke.Focus" Color="#E4000000" />
+    <SolidColorBrush x:Key="Brush.Stroke.FocusInner" Color="#FFFFFFFF" />
+
+    <!--
+        The 1px darker line along the bottom edge of a raised control. It is what keeps a flat
+        rectangle from reading as a sticker rather than a button.
+    -->
+    <SolidColorBrush x:Key="Brush.Stroke.ControlBottom" Color="#26000000" />
+
+    <!--
+        ==== Accent ==========================================================================
+
+        One indigo, no gradient. A two-stop brand gradient dates an interface faster than anything
+        else on screen and it fights the Mica behind the window: the same button reads as two
+        different colours depending on how wide it happens to be. This indigo is dark enough that
+        white sits on it at 6.3:1 — a gradient cannot promise that, because its contrast changes
+        along its own length.
+    -->
+
+    <Color x:Key="Color.Accent">#FF4F46E5</Color>
+
+    <SolidColorBrush x:Key="Brush.Accent.Default" Color="{StaticResource Color.Accent}" />
+    <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#FF443CD1" />
+    <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#FF3B34B8" />
+    <SolidColorBrush x:Key="Brush.Accent.Disabled" Color="#FFC3C4D4" />
+    <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#144F46E5" />
+    <SolidColorBrush x:Key="Brush.Accent.SubtleHover" Color="#234F46E5" />
+    <SolidColorBrush x:Key="Brush.Accent.Stroke" Color="#3D4F46E5" />
+
+    <!-- ==== Status ========================================================================== -->
+
+    <SolidColorBrush x:Key="Brush.Success" Color="#FF0E7A3C" />
+    <SolidColorBrush x:Key="Brush.Success.Bg" Color="#FFDFF5E7" />
+    <SolidColorBrush x:Key="Brush.Success.Stroke" Color="#3D0E7A3C" />
+
+    <SolidColorBrush x:Key="Brush.Warning" Color="#FF9A5B00" />
+    <SolidColorBrush x:Key="Brush.Warning.Bg" Color="#FFFFF3D6" />
+    <SolidColorBrush x:Key="Brush.Warning.Stroke" Color="#3D9A5B00" />
+
+    <SolidColorBrush x:Key="Brush.Danger" Color="#FFC42B1C" />
+    <SolidColorBrush x:Key="Brush.Danger.Bg" Color="#FFFDE7E9" />
+    <SolidColorBrush x:Key="Brush.Danger.Stroke" Color="#3DC42B1C" />
+
+    <!--
+        The fill behind white text on a destructive button, which is a different job from the red
+        that draws danger *text* on a card. In this theme they happen to coincide; in the dark one
+        they cannot, because the text red there is light enough that white on it is illegible.
+    -->
+    <SolidColorBrush x:Key="Brush.Danger.Fill" Color="#FFC42B1C" />
+    <SolidColorBrush x:Key="Brush.Danger.FillHover" Color="#FFB2271A" />
+    <SolidColorBrush x:Key="Brush.Danger.FillPressed" Color="#FF9C2216" />
+
+    <SolidColorBrush x:Key="Brush.Info" Color="#FF4F46E5" />
+    <SolidColorBrush x:Key="Brush.Info.Bg" Color="#FFEEEDFC" />
+    <SolidColorBrush x:Key="Brush.Info.Stroke" Color="#3D4F46E5" />
+
+    <!-- ==== Elevation ======================================================================= -->
+
+    <Color x:Key="Color.Shadow">#FF000000</Color>
+
+    <DropShadowEffect
+        x:Key="Effect.Shadow.Card"
+        BlurRadius="16"
+        Direction="270"
+        Opacity="0.09"
+        ShadowDepth="2"
+        Color="{StaticResource Color.Shadow}" />
+
+    <DropShadowEffect
+        x:Key="Effect.Shadow.Flyout"
+        BlurRadius="30"
+        Direction="270"
+        Opacity="0.22"
+        ShadowDepth="7"
+        Color="{StaticResource Color.Shadow}" />
+
+</ResourceDictionary>
