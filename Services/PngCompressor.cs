@@ -119,10 +119,28 @@ public sealed class PngCompressor : IFormatEncoder
             }
         }
 
+        if (!request.Fast)
+        {
+            using var rounded = PngRgbCandidate.Create(image, quality);
+            using var candidate = new MemoryStream();
+            Write(candidate, palette: false, source: rounded);
+            if (candidate.Length < exact.Length)
+            {
+                candidate.Position = 0;
+                using var decoded = Image.Load<Rgba32>(candidate);
+                if (PngQuality.Accepts(image, decoded, quality))
+                {
+                    candidate.WriteTo(output);
+                    return;
+                }
+            }
+        }
+
         exact.WriteTo(output);
 
-        void Write(Stream destination, bool palette, IQuantizer? exactQuantizer = null)
+        void Write(Stream destination, bool palette, IQuantizer? exactQuantizer = null, Image<Rgba32>? source = null)
         {
+            source ??= image;
             var encoder = new PngEncoder
             {
                 CompressionLevel = compressionLevel,
@@ -136,7 +154,7 @@ public sealed class PngCompressor : IFormatEncoder
                     ? PngChunkFilter.ExcludeExifChunk | PngChunkFilter.ExcludeTextChunks
                     : PngChunkFilter.None,
             };
-            EncodingMetadata.Write(image, request.StripMetadata, () => image.Save(destination, encoder));
+            EncodingMetadata.Write(source, request.StripMetadata, () => source.Save(destination, encoder));
         }
     }
 
