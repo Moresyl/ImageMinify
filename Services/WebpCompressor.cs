@@ -20,7 +20,7 @@ public sealed class WebpCompressor : IFormatEncoder
         var quality = Math.Clamp(request.Quality, 1, 100);
         var lossless = quality >= LosslessThreshold;
 
-        image.Save(output, new WebpEncoder
+        EncodingMetadata.Write(image, request.StripMetadata, () => image.Save(output, new WebpEncoder
         {
             Quality = quality,
             FileFormat = lossless ? WebpFileFormatType.Lossless : WebpFileFormatType.Lossy,
@@ -29,8 +29,9 @@ public sealed class WebpCompressor : IFormatEncoder
             // CPU of the default for a few percent of size — worth paying for the file that gets
             // kept, and not worth paying six times over for probes the search is going to discard.
             Method = request.Fast ? WebpEncodingMethod.Level2 : WebpEncodingMethod.BestQuality,
-            SkipMetadata = request.StripMetadata,
-        });
+            SkipMetadata = false,
+            TransparentColorMode = WebpTransparentColorMode.Preserve,
+        }));
     }
 
     /// <summary>

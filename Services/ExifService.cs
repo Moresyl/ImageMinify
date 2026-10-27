@@ -26,13 +26,12 @@ public sealed class ExifService
         image.Mutate(context => context.AutoOrient());
     }
 
-    /// <summary>Removes every metadata profile, including GPS coordinates and the colour profile.</summary>
+    /// <summary>Removes personal metadata while retaining the profile needed to display the pixels.</summary>
     public void Strip(Image image)
     {
         image.Metadata.ExifProfile = null;
         image.Metadata.IptcProfile = null;
         image.Metadata.XmpProfile = null;
-        image.Metadata.IccProfile = null;
     }
 
     /// <summary>

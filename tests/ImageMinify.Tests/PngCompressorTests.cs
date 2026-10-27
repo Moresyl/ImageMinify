@@ -29,9 +29,8 @@ public sealed class PngCompressorTests : IDisposable
     [Fact]
     public void Encode_QuantisesBelowTheLosslessThreshold()
     {
-        // Noise, not a gradient: a smooth ramp is the one image where a palette loses, because the
-        // row filters flatten it almost perfectly and quantisation only adds banding for zlib to
-        // encode. Detailed artwork is what the quality slider is actually for.
+        // Many nearby shades: a useful palette must both save space and meet the
+        // display-quality floor. High-contrast noise is allowed to stay true colour.
         using var image = CreateNoise(160, 160);
 
         var quantised = Encode(image, new EncodeRequest(70, StripMetadata: true));
@@ -217,7 +216,8 @@ public sealed class PngCompressorTests : IDisposable
                     seed ^= seed >> 13;
                     seed = unchecked(seed * 2654435761);
 
-                    row[x] = new Rgba32((byte)seed, (byte)(seed >> 8), (byte)(seed >> 16), byte.MaxValue);
+                    row[x] = new Rgba32((byte)(120 + (seed & 15)),
+                        (byte)(60 + ((seed >> 8) & 15)), (byte)(30 + ((seed >> 16) & 15)), byte.MaxValue);
                 }
             }
         });

@@ -7,14 +7,13 @@ namespace ImageMinify.Services;
 /// One attempt at encoding an image.
 /// </summary>
 /// <param name="Quality">1–100, however the format chooses to interpret it.</param>
-/// <param name="StripMetadata">Leave EXIF, IPTC, XMP and the colour profile out of the file.</param>
+/// <param name="StripMetadata">Remove personal metadata, keeping the display colour profile.</param>
 /// <param name="Fast">
 /// This is a probe during the target-size search, not the file that will be kept, so trade a little
 /// size for a lot of speed.
 /// <para>
-/// The search relies on a guarantee that runs the other way: every encoder's slow settings produce a
-/// file no larger than its fast ones at the same quality. So a probe that comes in under the target
-/// stays under it once re-encoded properly, and the search never has to verify its own answer.
+/// Encoder effort and palette decisions can change the size in either direction.
+/// The search must check the final encoded size before reporting that the target was met.
 /// </para>
 /// </param>
 public readonly record struct EncodeRequest(int Quality, bool StripMetadata, bool Fast = false);

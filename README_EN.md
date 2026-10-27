@@ -27,7 +27,7 @@ This project has two versions for different use cases:
 - **Resizing**: By longest edge in pixels or by percentage; images already smaller than the target are never upscaled
 - **Four output destinations**: Suffix, a `compressed` sub-folder, a chosen output folder (mirroring sub-directories), or overwrite in place
 - **Skip when larger**: Re-encoding an already-optimised image usually grows it — the original is kept instead by default
-- **Metadata control**: Keep, reduce (camera / date / software only), or strip EXIF, IPTC, XMP and the colour profile outright
+- **Metadata control**: Reduce camera / date / software information or strip EXIF, IPTC and XMP while retaining the ICC display profile to prevent colour shifts
 - **Before/after view**: Any result row opens a wipe comparison — drag anywhere on the picture to inspect the difference pixel by pixel. Scroll to magnify up to 1:1 and beyond, where the picture is drawn nearest-neighbour so the ringing and blocking the encoder left are visible as they are; transparency shows over a checkerboard
 - **CSV report**: Exports original/compressed size, ratio, dimensions, quality, elapsed time and errors per file
 - **Native acceleration**: imagequant / MozJPEG / oxipng are used automatically when present, with an ImageSharp fallback when they are not

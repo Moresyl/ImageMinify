@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -28,8 +29,12 @@
   <ItemGroup>
     <!-- PaletteTests reads these as XML. Copied rather than linked to a source path worked out at
          run time, so the tests keep working from wherever the binaries are run. -->
-    <Content Include="..\..\Themes\Palette.*.xaml" CopyToOutputDirectory="PreserveNewest">
+    <Content Include="..\..\Themes\*.xaml" CopyToOutputDirectory="PreserveNewest">
       <Link>Themes\%(Filename)%(Extension)</Link>
+    </Content>
+
+    <Content Include="..\..\App.xaml" CopyToOutputDirectory="PreserveNewest">
+      <Link>App.xaml</Link>
     </Content>
 
     <!-- StringsTests reads the window's markup the same way, to check that every key it asks for is

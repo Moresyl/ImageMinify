@@ -313,10 +313,9 @@ public sealed class ImageCompressor : IImageCompressor
     /// Finds the highest quality whose output fits <see cref="CompressionOptions.TargetSizeBytes"/>.
     /// </summary>
     /// <remarks>
-    /// File size rises monotonically with quality for all three lossy encoders, which is what makes
-    /// a bisection valid: seven probes cover the whole 5–100 range, against ninety-five for a linear
-    /// walk. The probes run at the encoders' fast settings and only the winner is re-encoded
-    /// properly — see <see cref="EncodeRequest.Fast"/> for why that cannot overshoot the target.
+    /// Bisection bounds the work to seven probes. Encoder decisions are not strictly monotonic,
+    /// so this is a best-effort search rather than proof of the highest achievable quality.
+    /// The selected quality is re-encoded and its final size is checked against the target.
     /// </remarks>
     private static (byte[] Payload, int Quality, bool MetTarget) SearchForTargetSize(
         IFormatEncoder encoder,
@@ -382,7 +381,7 @@ public sealed class ImageCompressor : IImageCompressor
         string outputExtension,
         CompressionOptions options)
     {
-        if (!options.SkipWhenLarger || compressedSize < originalSize)
+        if (!options.SkipWhenLarger || options.StripMetadata || compressedSize < originalSize)
         {
             return false;
         }

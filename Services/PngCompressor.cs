@@ -45,35 +45,58 @@ public sealed class PngCompressor : IFormatEncoder
     /// PNG. Quantisation is the only real lever the format has — 24-bit colour down to a 256-entry
     /// palette, which is where the 60–70% savings on screenshots and flat artwork come from — but it
     /// is lossy, and a user who asks for maximum quality is asking for the pixels back exactly.
-    /// Above the threshold the palette step is skipped entirely and the file stays bit-identical to
-    /// the source, with only zlib and oxipng working on it.
+    /// Above the threshold the palette step is skipped and the decoded RGBA pixels are preserved.
     /// </remarks>
     public void Encode(Image<Rgba32> image, Stream output, EncodeRequest request)
     {
         var quality = Math.Clamp(request.Quality, 1, 100);
 
-        // A probe during the target-size search uses the cheaper zlib level. It is never larger than
-        // BestCompression at the same palette, so a probe that fits the target still fits once the
-        // real encode runs.
+        // Probes use cheaper deflate; the target-size search checks the final encoded size again.
         var compressionLevel = request.Fast
             ? PngCompressionLevel.DefaultCompression
             : PngCompressionLevel.BestCompression;
 
-        var encoder = quality >= LosslessThreshold
-            ? new PngEncoder
-            {
-                CompressionLevel = compressionLevel,
-                SkipMetadata = request.StripMetadata,
-            }
-            : new PngEncoder
-            {
-                CompressionLevel = compressionLevel,
-                ColorType = PngColorType.Palette,
-                Quantizer = CreateQuantizer(image, quality),
-                SkipMetadata = request.StripMetadata,
-            };
+        // Always measure the lossless candidate: smooth gradients can compress better
+        // as true colour than as a palette, even at a lower requested quality.
+        using var exact = new MemoryStream();
+        Write(exact, palette: false);
+        if (quality >= LosslessThreshold)
+        {
+            exact.WriteTo(output);
+            return;
+        }
 
-        image.Save(output, encoder);
+        using var palette = new MemoryStream();
+        Write(palette, palette: true);
+        if (palette.Length < exact.Length)
+        {
+            palette.Position = 0;
+            using var decoded = Image.Load<Rgba32>(palette);
+            if (PngQuality.Accepts(image, decoded, quality))
+            {
+                palette.WriteTo(output);
+                return;
+            }
+        }
+
+        exact.WriteTo(output);
+
+        void Write(Stream destination, bool palette)
+        {
+            var encoder = new PngEncoder
+            {
+                CompressionLevel = compressionLevel,
+                ColorType = palette ? PngColorType.Palette : PngColorType.RgbWithAlpha,
+                BitDepth = PngBitDepth.Bit8,
+                Quantizer = palette ? CreateQuantizer(image, quality) : null,
+                TransparentColorMode = PngTransparentColorMode.Preserve,
+                SkipMetadata = false,
+                ChunkFilter = request.StripMetadata
+                    ? PngChunkFilter.ExcludeExifChunk | PngChunkFilter.ExcludeTextChunks
+                    : PngChunkFilter.None,
+            };
+            EncodingMetadata.Write(image, request.StripMetadata, () => image.Save(destination, encoder));
+        }
     }
 
     /// <summary>
@@ -101,14 +124,8 @@ public sealed class PngCompressor : IFormatEncoder
             startInfo.ArgumentList.Add("-o");
             startInfo.ArgumentList.Add("4");
 
-            // oxipng defaults to keeping chunks. Only strip when the run asked to — the previous
-            // behaviour was an unconditional "--strip all", which quietly discarded the metadata of
-            // a user who had explicitly chosen to keep it.
-            if (stripMetadata)
-            {
-                startInfo.ArgumentList.Add("--strip");
-                startInfo.ArgumentList.Add("all");
-            }
+            // Personal metadata was removed during Encode. Preserve colour and display
+            // chunks here; --strip all would change the appearance of unchanged pixels.
 
             // oxipng only ever writes the file back if its result is smaller, so there is no
             // size check to do here.
@@ -119,6 +136,10 @@ public sealed class PngCompressor : IFormatEncoder
             {
                 return;
             }
+
+            // Drain both redirected pipes so a verbose tool cannot block on a full pipe.
+            _ = process.StandardOutput.ReadToEndAsync();
+            _ = process.StandardError.ReadToEndAsync();
 
             if (!process.WaitForExit(60000))
             {

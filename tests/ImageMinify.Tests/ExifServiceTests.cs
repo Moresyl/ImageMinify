@@ -115,20 +115,21 @@ public sealed class ExifServiceTests : IDisposable
     }
 
     [Fact]
-    public void Strip_RemovesEveryProfileIncludingTheColourProfile()
+    public void Strip_RemovesPersonalProfilesAndKeepsTheColourProfile()
     {
         using var image = new Image<Rgba32>(16, 16, Color.Red);
         var exif = new ExifProfile();
         exif.SetValue(ExifTag.Make, "Canon");
         image.Metadata.ExifProfile = exif;
-        image.Metadata.IccProfile = new SixLabors.ImageSharp.Metadata.Profiles.Icc.IccProfile();
+        var icc = new SixLabors.ImageSharp.Metadata.Profiles.Icc.IccProfile();
+        image.Metadata.IccProfile = icc;
 
         _service.Strip(image);
 
         Assert.Null(image.Metadata.ExifProfile);
         Assert.Null(image.Metadata.IptcProfile);
         Assert.Null(image.Metadata.XmpProfile);
-        Assert.Null(image.Metadata.IccProfile);
+        Assert.Same(icc, image.Metadata.IccProfile);
     }
 
     /// <summary>
