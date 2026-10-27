@@ -1,5 +1,6 @@
 using ImageMinify.Services;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -62,6 +63,53 @@ public sealed class PngCompressorTests : IDisposable
                 Assert.Equal(image[x, y], decoded[x, y]);
             }
         }
+    }
+
+    [Fact]
+    public void Encode_OpaquePngOmitsAlphaWithoutChangingPixels()
+    {
+        using var image = CreateGradient(64, 64);
+        var encoded = Encode(image, new EncodeRequest(100, StripMetadata: true));
+        Assert.Equal((byte)PngColorType.Rgb, encoded[25]);
+        using var decoded = Image.Load<Rgba32>(encoded);
+        for (var y = 0; y < image.Height; y++)
+            for (var x = 0; x < image.Width; x++)
+                Assert.Equal(image[x, y], decoded[x, y]);
+    }
+
+    [Theory]
+    [InlineData(70)]
+    [InlineData(100)]
+    public void Encode_AnimationKeepsTransparencyAfterAnOpaqueFirstFrame(int quality)
+    {
+        using var source = new Image<Rgba32>(16, 16, Color.Red);
+        using var overlay = new Image<Rgba32>(16, 16, new Rgba32(40, 80, 120, 127));
+        overlay[0, 0] = new Rgba32(10, 20, 30, 0);
+        source.Frames.AddFrame(overlay.Frames.RootFrame);
+        using var result = Image.Load<Rgba32>(Encode(source, new EncodeRequest(quality, true)));
+        Assert.Equal(2, result.Frames.Count);
+        for (var frame = 0; frame < 2; frame++)
+            for (var y = 0; y < source.Height; y++)
+                for (var x = 0; x < source.Width; x++)
+                    Assert.Equal(source.Frames[frame][x, y].A, result.Frames[frame][x, y].A);
+    }
+
+    [Theory]
+    [InlineData(95)]
+    [InlineData(100)]
+    public void Encode_IndexedInputDoesNotRequantizeAtHighQuality(int quality)
+    {
+        using var source = CreateGradient(64, 64);
+        using var indexed = new MemoryStream();
+        source.Save(indexed, new PngEncoder { ColorType = PngColorType.Palette });
+        using var input = Image.Load<Rgba32>(indexed.ToArray());
+        // A resize/edit can introduce new colours while retaining source palette metadata.
+        for (var x = 0; x < input.Width; x++)
+            input[x, 0] = new Rgba32((byte)(x * 3), (byte)(x * 2), (byte)x, (byte)(x * 4));
+        using var result = Image.Load<Rgba32>(Encode(input, new EncodeRequest(quality, true)));
+        for (var y = 0; y < input.Height; y++)
+            for (var x = 0; x < input.Width; x++)
+                Assert.Equal(input[x, y], result[x, y]);
     }
 
     /// <summary>

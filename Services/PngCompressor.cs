@@ -50,6 +50,8 @@ public sealed class PngCompressor : IFormatEncoder
     public void Encode(Image<Rgba32> image, Stream output, EncodeRequest request)
     {
         var quality = Math.Clamp(request.Quality, 1, 100);
+        // Keep alpha for animations even when the first frame happens to be opaque.
+        var hasTransparency = image.Frames.Count > 1 || PixelInspector.HasTransparency(image);
 
         // Probes use cheaper deflate; the target-size search checks the final encoded size again.
         var compressionLevel = request.Fast
@@ -86,9 +88,10 @@ public sealed class PngCompressor : IFormatEncoder
             var encoder = new PngEncoder
             {
                 CompressionLevel = compressionLevel,
-                ColorType = palette ? PngColorType.Palette : PngColorType.RgbWithAlpha,
+                ColorType = palette ? PngColorType.Palette
+                    : hasTransparency ? PngColorType.RgbWithAlpha : PngColorType.Rgb,
                 BitDepth = PngBitDepth.Bit8,
-                Quantizer = palette ? CreateQuantizer(image, quality) : null,
+                Quantizer = palette ? CreateQuantizer(image, quality, hasTransparency) : null,
                 TransparentColorMode = PngTransparentColorMode.Preserve,
                 SkipMetadata = false,
                 ChunkFilter = request.StripMetadata
@@ -159,7 +162,7 @@ public sealed class PngCompressor : IFormatEncoder
         }
     }
 
-    private IQuantizer CreateQuantizer(Image<Rgba32> image, int quality)
+    private IQuantizer CreateQuantizer(Image<Rgba32> image, int quality, bool hasTransparency)
     {
         if (_imagequantNativeQuantizer.TryCreateQuantizer(image, quality, out var quantizer) && quantizer is not null)
         {
@@ -178,7 +181,7 @@ public sealed class PngCompressor : IFormatEncoder
         // and on exactly the kind of PNG people compress. Wu quantises over all four channels, so it
         // is the one that gets used whenever there is alpha to lose. Octree keeps the images it is
         // better at: flat artwork and screenshots, which have no transparency to begin with.
-        return PixelInspector.HasTransparency(image)
+        return hasTransparency
             ? new WuQuantizer(options)
             : new OctreeQuantizer(options);
     }
