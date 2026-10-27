@@ -17,6 +17,8 @@ internal static class PngQuality
         for (var frame = 0; frame < source.Frames.Count; frame++)
         {
             double squaredError = 0;
+            // One row of 8x8 blocks bounds scratch memory independently of height.
+            var blockErrors = new double[(source.Width + 7) / 8];
             var accepted = true;
             source.Frames[frame].ProcessPixelRows(candidate.Frames[frame], (original, decoded) =>
             {
@@ -35,7 +37,20 @@ internal static class PngQuality
                         var blue = (a.B - b.B) * a.A / 255.0;
                         if (Math.Max(Math.Abs(r), Math.Max(Math.Abs(g), Math.Abs(blue))) > maxError)
                         { accepted = false; return; }
-                        squaredError += r * r + g * g + blue * blue;
+                        var error = r * r + g * g + blue * blue;
+                        squaredError += error;
+                        blockErrors[x / 8] += error;
+                    }
+                    if (y % 8 == 7 || y == original.Height - 1)
+                    {
+                        var blockHeight = y % 8 + 1;
+                        for (var block = 0; block < blockErrors.Length; block++)
+                        {
+                            var blockWidth = Math.Min(8, original.Width - block * 8);
+                            if (blockErrors[block] / (blockWidth * blockHeight * 3) > maxMeanSquare)
+                            { accepted = false; return; }
+                        }
+                        Array.Clear(blockErrors);
                     }
                 }
             });
