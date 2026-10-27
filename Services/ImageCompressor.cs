@@ -219,7 +219,7 @@ public sealed class ImageCompressor : IImageCompressor
             if (image is Image<Rgba64> highDepth)
             {
                 ct.ThrowIfCancellationRequested();
-                payload = PngHighDepth.Encode(highDepth, options.StripMetadata);
+                payload = PngHighDepth.Encode(highDepth, options.StripMetadata, ct);
                 qualityUsed = 100;
                 metTarget = options.TargetSizeBytes <= 0 || payload.Length <= options.TargetSizeBytes;
             }
@@ -237,6 +237,7 @@ public sealed class ImageCompressor : IImageCompressor
                 }
             }
 
+            ct.ThrowIfCancellationRequested();
             if (ShouldSkip(payload.Length, originalSize, inputExtension, outputExtension, options))
             {
                 return new CompressionResult

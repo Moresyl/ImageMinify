@@ -1,3 +1,4 @@
+using ImageMinify.Helpers;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
@@ -16,13 +17,17 @@ internal static class PngHighDepth
             && info.Metadata.GetPngMetadata().BitDepth == PngBitDepth.Bit16;
     }
 
-    public static byte[] Encode(Image<Rgba64> image, bool stripMetadata)
+    public static byte[] Encode(Image<Rgba64> image, bool stripMetadata, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (image.Frames.Count > 1)
+            return PngHighDepthAnimation.Encode(image, stripMetadata, cancellationToken);
+        var hasTransparency = PixelInspector.HasTransparency(image, cancellationToken);
         using var buffer = new MemoryStream();
         var encoder = new PngEncoder
         {
             BitDepth = PngBitDepth.Bit16,
-            ColorType = PngColorType.RgbWithAlpha,
+            ColorType = hasTransparency ? PngColorType.RgbWithAlpha : PngColorType.Rgb,
             CompressionLevel = PngCompressionLevel.BestCompression,
             TransparentColorMode = PngTransparentColorMode.Preserve,
             SkipMetadata = false,
@@ -31,6 +36,7 @@ internal static class PngHighDepth
                 : PngChunkFilter.None,
         };
         EncodingMetadata.Write(image, stripMetadata, () => image.Save(buffer, encoder));
+        cancellationToken.ThrowIfCancellationRequested();
         return buffer.ToArray();
     }
 }
