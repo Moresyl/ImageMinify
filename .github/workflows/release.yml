@@ -27,7 +27,8 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          # Match global.json's latestPatch policy within the 10.0.1xx feature band.
+          dotnet-version: 10.0.1xx
 
       - name: Read and validate version
         id: version
