@@ -258,7 +258,7 @@ public sealed class ImageCompressor : IImageCompressor
                 };
             }
 
-            WriteAtomic(outputPath, payload);
+            outputPath = WriteAtomic(outputPath, payload, options.OutputMode == OutputMode.Overwrite);
             encoder.PostProcess(outputPath, options.StripMetadata);
 
             var compressedSize = new FileInfo(outputPath).Length;
@@ -540,7 +540,7 @@ public sealed class ImageCompressor : IImageCompressor
     /// it. Writing straight to the destination would have a window where the user's only copy is a
     /// truncated one.
     /// </remarks>
-    private static void WriteAtomic(string outputPath, byte[] payload)
+    private static string WriteAtomic(string outputPath, byte[] payload, bool overwrite)
     {
         var directory = Path.GetDirectoryName(outputPath);
         if (!string.IsNullOrEmpty(directory))
@@ -555,7 +555,31 @@ public sealed class ImageCompressor : IImageCompressor
         try
         {
             File.WriteAllBytes(tempPath, payload);
-            File.Move(tempPath, outputPath, overwrite: true);
+            if (overwrite)
+            {
+                File.Move(tempPath, outputPath, overwrite: true);
+                return outputPath;
+            }
+
+            // File.Move without overwrite atomically claims the name, including races
+            // between batch workers or other processes. Never replace an unrelated file.
+            for (var index = 1; index <= 10000; index++)
+            {
+                var candidate = index == 1 ? outputPath : Path.Combine(
+                    directory ?? AppContext.BaseDirectory,
+                    $"{Path.GetFileNameWithoutExtension(outputPath)}_{index}{Path.GetExtension(outputPath)}");
+                try
+                {
+                    File.Move(tempPath, candidate, overwrite: false);
+                    return candidate;
+                }
+                catch (IOException) when (File.Exists(candidate) || Directory.Exists(candidate))
+                {
+                    // Keep the completed temporary file and try the next name.
+                }
+            }
+
+            throw new IOException("无法分配未占用的输出文件名 / No unused output filename available.");
         }
         catch
         {
@@ -592,8 +616,14 @@ public sealed class ImageCompressor : IImageCompressor
             return true;
         }
 
-        return !string.IsNullOrEmpty(options.Suffix)
-            && Path.GetFileNameWithoutExtension(file).EndsWith(options.Suffix, StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(options.Suffix)) return false;
+        var name = Path.GetFileNameWithoutExtension(file);
+        if (name.EndsWith(options.Suffix, StringComparison.OrdinalIgnoreCase)) return true;
+        var separator = name.LastIndexOf('_');
+        return separator >= 0
+            && int.TryParse(name.AsSpan(separator + 1), out var collisionIndex)
+            && collisionIndex >= 2
+            && name[..separator].EndsWith(options.Suffix, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? TryGetFullPath(string path)
