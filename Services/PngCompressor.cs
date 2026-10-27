@@ -96,6 +96,29 @@ public sealed class PngCompressor : IFormatEncoder
             }
         }
 
+        // Octree can miss small saturated details, especially on screenshots.
+        // Before falling back to true colour, try a full Wu palette without
+        // dithering; the same pixel, alpha and local quality checks still apply.
+        if (!request.Fast)
+        {
+            using var alternative = new MemoryStream();
+            Write(alternative, palette: true, new WuQuantizer(new QuantizerOptions
+            {
+                MaxColors = 256,
+                Dither = null,
+            }));
+            if (alternative.Length < exact.Length)
+            {
+                alternative.Position = 0;
+                using var decoded = Image.Load<Rgba32>(alternative);
+                if (PngQuality.Accepts(image, decoded, quality))
+                {
+                    alternative.WriteTo(output);
+                    return;
+                }
+            }
+        }
+
         exact.WriteTo(output);
 
         void Write(Stream destination, bool palette, IQuantizer? exactQuantizer = null)

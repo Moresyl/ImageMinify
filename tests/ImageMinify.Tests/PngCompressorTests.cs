@@ -117,6 +117,25 @@ public sealed class PngCompressorTests : IDisposable
                 Assert.Equal(source[x, y], decoded[x, y]);
     }
 
+    [Fact]
+    public void Encode_KeepsSmallSaturatedDetailsWithinQualityAndSizeBounds()
+    {
+        using var source = new Image<Rgba32>(256, 256);
+        for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
+                source[x, y] = new Rgba32((byte)x, (byte)x, (byte)x);
+        for (var y = 120; y < 128; y++)
+            for (var x = 120; x < 128; x++)
+                source[x, y] = new Rgba32(255, 0, 0);
+        var bytes = Encode(source, new EncodeRequest(82, true));
+        using var decoded = Image.Load<Rgba32>(bytes);
+        Assert.True(PngQuality.Accepts(source, decoded, 82));
+        Assert.InRange(decoded[123, 123].R, 240, 255);
+        Assert.InRange(decoded[123, 123].G, 0, 15);
+        Assert.InRange(decoded[123, 123].B, 0, 15);
+        Assert.True(bytes.Length <= Encode(source, new EncodeRequest(100, true)).Length);
+    }
+
     [Theory]
     [InlineData(70)]
     [InlineData(100)]
