@@ -316,14 +316,14 @@ public sealed class ImageCompressor : IImageCompressor
     }
 
     /// <summary>
-    /// Finds the highest quality whose output fits <see cref="CompressionOptions.TargetSizeBytes"/>.
+    /// Searches for a high-quality candidate fitting <see cref="CompressionOptions.TargetSizeBytes"/>.
     /// </summary>
     /// <remarks>
     /// Bisection bounds the work to seven probes. Encoder decisions are not strictly monotonic,
     /// so this is a best-effort search rather than proof of the highest achievable quality.
     /// The selected quality is re-encoded and its final size is checked against the target.
     /// </remarks>
-    private static (byte[] Payload, int Quality, bool MetTarget) SearchForTargetSize(
+    internal static (byte[] Payload, int Quality, bool MetTarget) SearchForTargetSize(
         IFormatEncoder encoder,
         Image<Rgba32> surface,
         CompressionOptions options,
@@ -333,6 +333,7 @@ public sealed class ImageCompressor : IImageCompressor
         var low = MinimumSearchQuality;
         var high = 100;
         var bestQuality = 0;
+        byte[]? bestProbe = null;
 
         while (low <= high)
         {
@@ -344,6 +345,7 @@ public sealed class ImageCompressor : IImageCompressor
             if (probe.Length <= target)
             {
                 bestQuality = mid;
+                bestProbe = probe;
                 low = mid + 1;
             }
             else
@@ -352,17 +354,19 @@ public sealed class ImageCompressor : IImageCompressor
             }
         }
 
-        if (bestQuality == 0)
+        ct.ThrowIfCancellationRequested();
+        if (bestProbe is null)
         {
-            // The target is unreachable at any quality this format offers. Give back the smallest
-            // file it can make and let the result say the target was missed, rather than silently
-            // returning something many times over budget.
+            // No fast probe fit. Full-effort encoding at the quality floor can still
+            // meet the target, so determine success from its actual bytes.
             var floor = EncodeToArray(encoder, surface, new EncodeRequest(MinimumSearchQuality, options.StripMetadata));
-            return (floor, MinimumSearchQuality, false);
+            return (floor, MinimumSearchQuality, floor.Length <= target);
         }
 
         var payload = EncodeToArray(encoder, surface, new EncodeRequest(bestQuality, options.StripMetadata));
-        return (payload, bestQuality, payload.Length <= target);
+        // Both encodes use the same quality and fidelity checks. Higher effort is
+        // not a guarantee of fewer bytes; retain the already valid smaller result.
+        return (payload.Length <= bestProbe.Length ? payload : bestProbe, bestQuality, true);
     }
 
     private static byte[] EncodeToArray(IFormatEncoder encoder, Image<Rgba32> image, EncodeRequest request)
