@@ -1267,7 +1267,7 @@
                                             MaxHeight="150"
                                             Margin="0,7,0,0"
                                             Padding="10"
-                                            Style="{StaticResource InsetPanel}">
+                                            Style="{StaticResource Inset}">
                                             <ScrollViewer VerticalScrollBarVisibility="Hidden">
                                                 <TextBlock Text="{Binding UpdateNotes}" TextWrapping="Wrap" />
                                             </ScrollViewer>

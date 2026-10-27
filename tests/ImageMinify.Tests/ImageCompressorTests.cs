@@ -209,6 +209,25 @@ public sealed class ImageCompressorTests : IDisposable
     }
 
     [Fact]
+    public async Task CompressAsync_PrivacyStrippingNeverReturnsTheUnsanitizedOriginal()
+    {
+        var inputPath = CreateNoiseImage("private.jpg", 96, 96, quality: 5);
+        using (var image = Image.Load<Rgba32>(inputPath))
+        {
+            var exif = new SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifProfile();
+            exif.SetValue(SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifTag.Artist, "Private artist");
+            image.Metadata.ExifProfile = exif;
+            image.Save(inputPath, new JpegEncoder { Quality = 5 });
+        }
+        var result = await _compressor.CompressAsync(inputPath,
+            new CompressionOptions { Quality = 100, StripMetadata = true, SkipWhenLarger = true });
+        Assert.Equal(ResultState.Compressed, result.State);
+        Assert.NotEqual(inputPath, result.CompressedPath);
+        using var output = Image.Load(result.CompressedPath);
+        Assert.Null(output.Metadata.ExifProfile);
+    }
+
+    [Fact]
     public async Task CompressAsync_OverwriteReplacesTheSourceAndKeepsItsFormat()
     {
         var inputPath = CreateNoiseImage("source.jpg", 240, 240, quality: 95);

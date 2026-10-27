@@ -10,6 +10,25 @@ namespace ImageMinify.Helpers;
 /// </summary>
 internal static class PixelInspector
 {
+    public static bool HasTransparency(Image<Rgba64> image, CancellationToken cancellationToken = default)
+    {
+        var found = false;
+        image.ProcessPixelRows(accessor =>
+        {
+            for (var y = 0; y < accessor.Height; y++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                foreach (var pixel in accessor.GetRowSpan(y))
+                {
+                    if (pixel.A == ushort.MaxValue) continue;
+                    found = true;
+                    return;
+                }
+            }
+        });
+        return found;
+    }
+
     /// <summary>
     /// Whether any pixel is not fully opaque.
     /// </summary>

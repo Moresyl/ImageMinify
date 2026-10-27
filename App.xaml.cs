@@ -51,7 +51,7 @@ public partial class App : Application
     /// </remarks>
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        if (_viewModel is not null)
+        if (_viewModel is not null && MainWindow?.IsVisible == true)
         {
             _ = _viewModel.ShowExceptionAsync(
                 Strings.Get("Str.App.Crash"),
@@ -60,11 +60,8 @@ public partial class App : Application
         }
         else
         {
-            MessageBox.Show(
-                DiagnosticReport.Redact(e.Exception.Message),
-                Strings.Get("Str.App.Crash"),
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            StartupFailure.Report(e.Exception);
+            Shutdown(1);
         }
 
         e.Handled = true;

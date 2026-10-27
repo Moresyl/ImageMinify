@@ -1,0 +1,45 @@
+name: Windows build and tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          # global.json uses latestPatch within the 10.0.1xx feature band.
+          dotnet-version: 10.0.1xx
+      - name: Restore
+        run: dotnet restore ImageMinify.sln --nologo
+      - name: Build and test
+        run: dotnet test ImageMinify.sln -c Release --no-restore --nologo --logger trx --results-directory TestResults
+      - name: Publish Windows x64 application
+        run: dotnet publish ImageMinify.csproj -c Release -r win-x64 --self-contained true --nologo -o publish/win-x64
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-results
+          path: TestResults/*.trx
+          if-no-files-found: warn
+      - name: Upload runnable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImageMinify-windows-x64-${{ github.sha }}
+          path: publish/win-x64/
+          retention-days: 7
+          if-no-files-found: error

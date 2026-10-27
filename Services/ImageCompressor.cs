@@ -192,7 +192,9 @@ public sealed class ImageCompressor : IImageCompressor
 
             // Image.Load reads the file to completion and closes the handle, so the source is not
             // locked afterwards — which is what lets Overwrite write back over this same path.
-            using var image = Image.Load<Rgba32>(inputPath);
+            using Image image = PngHighDepth.RequiresPreservation(inputPath, outputExtension)
+                ? Image.Load<Rgba64>(inputPath)
+                : Image.Load<Rgba32>(inputPath);
 
             // Before anything measures or resizes the image: see ExifService.AutoOrient for why.
             _exifService.AutoOrient(image);
@@ -211,26 +213,31 @@ public sealed class ImageCompressor : IImageCompressor
                 _exifService.Reduce(image, inputPath);
             }
 
-            var surface = encoder.Prepare(image);
             byte[] payload;
             int qualityUsed;
             bool metTarget;
-
-            try
+            if (image is Image<Rgba64> highDepth)
             {
                 ct.ThrowIfCancellationRequested();
-                (payload, qualityUsed, metTarget) = Encode(encoder, surface, options, ct);
+                payload = PngHighDepth.Encode(highDepth, options.StripMetadata, ct);
+                qualityUsed = 100;
+                metTarget = options.TargetSizeBytes <= 0 || payload.Length <= options.TargetSizeBytes;
             }
-            finally
+            else
             {
-                // Prepare returns the same instance when it had nothing to convert; disposing it
-                // here would tear down the image the using block above still owns.
-                if (!ReferenceEquals(surface, image))
+                var surface = encoder.Prepare((Image<Rgba32>)image);
+                try
                 {
-                    surface.Dispose();
+                    ct.ThrowIfCancellationRequested();
+                    (payload, qualityUsed, metTarget) = Encode(encoder, surface, options, ct);
+                }
+                finally
+                {
+                    if (!ReferenceEquals(surface, image)) surface.Dispose();
                 }
             }
 
+            ct.ThrowIfCancellationRequested();
             if (ShouldSkip(payload.Length, originalSize, inputExtension, outputExtension, options))
             {
                 return new CompressionResult
@@ -252,7 +259,7 @@ public sealed class ImageCompressor : IImageCompressor
                 };
             }
 
-            WriteAtomic(outputPath, payload);
+            outputPath = WriteAtomic(outputPath, payload, options.OutputMode == OutputMode.Overwrite);
             encoder.PostProcess(outputPath, options.StripMetadata);
 
             var compressedSize = new FileInfo(outputPath).Length;
@@ -302,7 +309,7 @@ public sealed class ImageCompressor : IImageCompressor
     {
         if (options.TargetSizeBytes <= 0 || !encoder.SupportsQuality)
         {
-            var payload = EncodeToArray(encoder, surface, new EncodeRequest(options.Quality, options.StripMetadata));
+            var payload = EncodeToArray(encoder, surface, new EncodeRequest(options.Quality, options.StripMetadata) { CancellationToken = ct });
             return (payload, options.Quality, true);
         }
 
@@ -310,15 +317,14 @@ public sealed class ImageCompressor : IImageCompressor
     }
 
     /// <summary>
-    /// Finds the highest quality whose output fits <see cref="CompressionOptions.TargetSizeBytes"/>.
+    /// Searches for a high-quality candidate fitting <see cref="CompressionOptions.TargetSizeBytes"/>.
     /// </summary>
     /// <remarks>
-    /// File size rises monotonically with quality for all three lossy encoders, which is what makes
-    /// a bisection valid: seven probes cover the whole 5–100 range, against ninety-five for a linear
-    /// walk. The probes run at the encoders' fast settings and only the winner is re-encoded
-    /// properly — see <see cref="EncodeRequest.Fast"/> for why that cannot overshoot the target.
+    /// Bisection bounds the work to seven probes. Encoder decisions are not strictly monotonic,
+    /// so this is a best-effort search rather than proof of the highest achievable quality.
+    /// The selected quality is re-encoded and its final size is checked against the target.
     /// </remarks>
-    private static (byte[] Payload, int Quality, bool MetTarget) SearchForTargetSize(
+    internal static (byte[] Payload, int Quality, bool MetTarget) SearchForTargetSize(
         IFormatEncoder encoder,
         Image<Rgba32> surface,
         CompressionOptions options,
@@ -328,17 +334,19 @@ public sealed class ImageCompressor : IImageCompressor
         var low = MinimumSearchQuality;
         var high = 100;
         var bestQuality = 0;
+        byte[]? bestProbe = null;
 
         while (low <= high)
         {
             ct.ThrowIfCancellationRequested();
 
             var mid = (low + high) / 2;
-            var probe = EncodeToArray(encoder, surface, new EncodeRequest(mid, options.StripMetadata, Fast: true));
+            var probe = EncodeToArray(encoder, surface, new EncodeRequest(mid, options.StripMetadata, Fast: true) { CancellationToken = ct });
 
             if (probe.Length <= target)
             {
                 bestQuality = mid;
+                bestProbe = probe;
                 low = mid + 1;
             }
             else
@@ -347,23 +355,27 @@ public sealed class ImageCompressor : IImageCompressor
             }
         }
 
-        if (bestQuality == 0)
+        ct.ThrowIfCancellationRequested();
+        if (bestProbe is null)
         {
-            // The target is unreachable at any quality this format offers. Give back the smallest
-            // file it can make and let the result say the target was missed, rather than silently
-            // returning something many times over budget.
-            var floor = EncodeToArray(encoder, surface, new EncodeRequest(MinimumSearchQuality, options.StripMetadata));
-            return (floor, MinimumSearchQuality, false);
+            // No fast probe fit. Full-effort encoding at the quality floor can still
+            // meet the target, so determine success from its actual bytes.
+            var floor = EncodeToArray(encoder, surface, new EncodeRequest(MinimumSearchQuality, options.StripMetadata) { CancellationToken = ct });
+            return (floor, MinimumSearchQuality, floor.Length <= target);
         }
 
-        var payload = EncodeToArray(encoder, surface, new EncodeRequest(bestQuality, options.StripMetadata));
-        return (payload, bestQuality, payload.Length <= target);
+        var payload = EncodeToArray(encoder, surface, new EncodeRequest(bestQuality, options.StripMetadata) { CancellationToken = ct });
+        // Both encodes use the same quality and fidelity checks. Higher effort is
+        // not a guarantee of fewer bytes; retain the already valid smaller result.
+        return (payload.Length <= bestProbe.Length ? payload : bestProbe, bestQuality, true);
     }
 
     private static byte[] EncodeToArray(IFormatEncoder encoder, Image<Rgba32> image, EncodeRequest request)
     {
+        request.CancellationToken.ThrowIfCancellationRequested();
         using var buffer = new MemoryStream();
         encoder.Encode(image, buffer, request);
+        request.CancellationToken.ThrowIfCancellationRequested();
         return buffer.ToArray();
     }
 
@@ -382,7 +394,7 @@ public sealed class ImageCompressor : IImageCompressor
         string outputExtension,
         CompressionOptions options)
     {
-        if (!options.SkipWhenLarger || compressedSize < originalSize)
+        if (!options.SkipWhenLarger || options.StripMetadata || compressedSize < originalSize)
         {
             return false;
         }
@@ -391,7 +403,7 @@ public sealed class ImageCompressor : IImageCompressor
             && string.Equals(inputExtension, outputExtension, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void ApplyScale(Image<Rgba32> image, CompressionOptions options)
+    private static void ApplyScale(Image image, CompressionOptions options)
     {
         var (width, height) = options.ScaleMode switch
         {
@@ -535,7 +547,7 @@ public sealed class ImageCompressor : IImageCompressor
     /// it. Writing straight to the destination would have a window where the user's only copy is a
     /// truncated one.
     /// </remarks>
-    private static void WriteAtomic(string outputPath, byte[] payload)
+    private static string WriteAtomic(string outputPath, byte[] payload, bool overwrite)
     {
         var directory = Path.GetDirectoryName(outputPath);
         if (!string.IsNullOrEmpty(directory))
@@ -550,7 +562,31 @@ public sealed class ImageCompressor : IImageCompressor
         try
         {
             File.WriteAllBytes(tempPath, payload);
-            File.Move(tempPath, outputPath, overwrite: true);
+            if (overwrite)
+            {
+                File.Move(tempPath, outputPath, overwrite: true);
+                return outputPath;
+            }
+
+            // File.Move without overwrite atomically claims the name, including races
+            // between batch workers or other processes. Never replace an unrelated file.
+            for (var index = 1; index <= 10000; index++)
+            {
+                var candidate = index == 1 ? outputPath : Path.Combine(
+                    directory ?? AppContext.BaseDirectory,
+                    $"{Path.GetFileNameWithoutExtension(outputPath)}_{index}{Path.GetExtension(outputPath)}");
+                try
+                {
+                    File.Move(tempPath, candidate, overwrite: false);
+                    return candidate;
+                }
+                catch (IOException) when (File.Exists(candidate) || Directory.Exists(candidate))
+                {
+                    // Keep the completed temporary file and try the next name.
+                }
+            }
+
+            throw new IOException("无法分配未占用的输出文件名 / No unused output filename available.");
         }
         catch
         {
@@ -587,8 +623,14 @@ public sealed class ImageCompressor : IImageCompressor
             return true;
         }
 
-        return !string.IsNullOrEmpty(options.Suffix)
-            && Path.GetFileNameWithoutExtension(file).EndsWith(options.Suffix, StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(options.Suffix)) return false;
+        var name = Path.GetFileNameWithoutExtension(file);
+        if (name.EndsWith(options.Suffix, StringComparison.OrdinalIgnoreCase)) return true;
+        var separator = name.LastIndexOf('_');
+        return separator >= 0
+            && int.TryParse(name.AsSpan(separator + 1), out var collisionIndex)
+            && collisionIndex >= 2
+            && name[..separator].EndsWith(options.Suffix, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? TryGetFullPath(string path)

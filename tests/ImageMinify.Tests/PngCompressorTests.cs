@@ -1,5 +1,6 @@
 using ImageMinify.Services;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -29,9 +30,8 @@ public sealed class PngCompressorTests : IDisposable
     [Fact]
     public void Encode_QuantisesBelowTheLosslessThreshold()
     {
-        // Noise, not a gradient: a smooth ramp is the one image where a palette loses, because the
-        // row filters flatten it almost perfectly and quantisation only adds banding for zlib to
-        // encode. Detailed artwork is what the quality slider is actually for.
+        // Many nearby shades: a useful palette must both save space and meet the
+        // display-quality floor. High-contrast noise is allowed to stay true colour.
         using var image = CreateNoise(160, 160);
 
         var quantised = Encode(image, new EncodeRequest(70, StripMetadata: true));
@@ -46,8 +46,7 @@ public sealed class PngCompressorTests : IDisposable
     }
 
     /// <summary>
-    /// A user who asks for maximum quality is asking for the pixels back exactly, so the palette step
-    /// is skipped entirely and only zlib works on the file.
+    /// Maximum quality preserves all pixels, whether true colour or an exact palette wins.
     /// </summary>
     [Fact]
     public void Encode_IsLosslessAtTheTopOfTheRange()
@@ -63,6 +62,113 @@ public sealed class PngCompressorTests : IDisposable
                 Assert.Equal(image[x, y], decoded[x, y]);
             }
         }
+    }
+
+    [Fact]
+    public void Encode_OpaquePngOmitsAlphaWithoutChangingPixels()
+    {
+        using var image = CreateGradient(64, 64);
+        var encoded = Encode(image, new EncodeRequest(100, StripMetadata: true));
+        Assert.Equal((byte)PngColorType.Rgb, encoded[25]);
+        using var decoded = Image.Load<Rgba32>(encoded);
+        for (var y = 0; y < image.Height; y++)
+            for (var x = 0; x < image.Width; x++)
+                Assert.Equal(image[x, y], decoded[x, y]);
+    }
+
+    [Theory]
+    [InlineData(95)]
+    [InlineData(100)]
+    public void Encode_LowColorImageUsesSmallerPixelExactPalette(int quality)
+    {
+        using var source = new Image<Rgba32>(128, 128);
+        var random = new Random(20261027);
+        Rgba32[] colors = [new(12, 34, 56), new(200, 30, 100), new(40, 220, 70), new(240, 180, 90)];
+        for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
+                source[x, y] = colors[random.Next(colors.Length)];
+        using var trueColor = new MemoryStream();
+        source.Save(trueColor, new PngEncoder
+        {
+            ColorType = PngColorType.Rgb,
+            BitDepth = PngBitDepth.Bit8,
+            CompressionLevel = PngCompressionLevel.BestCompression,
+        });
+        var encoded = Encode(source, new EncodeRequest(quality, true));
+        Assert.Equal((byte)PngColorType.Palette, encoded[25]);
+        Assert.True(encoded.Length < trueColor.Length);
+        using var decoded = Image.Load<Rgba32>(encoded);
+        for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
+                Assert.Equal(source[x, y], decoded[x, y]);
+    }
+
+    [Fact]
+    public void Encode_ExactPaletteDoesNotDiscardTransparentHiddenColors()
+    {
+        using var source = new Image<Rgba32>(64, 64);
+        Rgba32[] colors = [new(12, 34, 56, 0), new(200, 30, 100, 0), new(40, 220, 70, 127)];
+        for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
+                source[x, y] = colors[(x + y) % colors.Length];
+        using var decoded = Image.Load<Rgba32>(Encode(source, new EncodeRequest(100, true)));
+        for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
+                Assert.Equal(source[x, y], decoded[x, y]);
+    }
+
+    [Fact]
+    public void Encode_KeepsSmallSaturatedDetailsWithinQualityAndSizeBounds()
+    {
+        using var source = new Image<Rgba32>(256, 256);
+        for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
+                source[x, y] = new Rgba32((byte)x, (byte)x, (byte)x);
+        for (var y = 120; y < 128; y++)
+            for (var x = 120; x < 128; x++)
+                source[x, y] = new Rgba32(255, 0, 0);
+        var bytes = Encode(source, new EncodeRequest(82, true));
+        using var decoded = Image.Load<Rgba32>(bytes);
+        Assert.True(PngQuality.Accepts(source, decoded, 82));
+        Assert.InRange(decoded[123, 123].R, 240, 255);
+        Assert.InRange(decoded[123, 123].G, 0, 15);
+        Assert.InRange(decoded[123, 123].B, 0, 15);
+        Assert.True(bytes.Length <= Encode(source, new EncodeRequest(100, true)).Length);
+    }
+
+    [Theory]
+    [InlineData(70)]
+    [InlineData(100)]
+    public void Encode_AnimationKeepsTransparencyAfterAnOpaqueFirstFrame(int quality)
+    {
+        using var source = new Image<Rgba32>(16, 16, Color.Red);
+        using var overlay = new Image<Rgba32>(16, 16, new Rgba32(40, 80, 120, 127));
+        overlay[0, 0] = new Rgba32(10, 20, 30, 0);
+        source.Frames.AddFrame(overlay.Frames.RootFrame);
+        using var result = Image.Load<Rgba32>(Encode(source, new EncodeRequest(quality, true)));
+        Assert.Equal(2, result.Frames.Count);
+        for (var frame = 0; frame < 2; frame++)
+            for (var y = 0; y < source.Height; y++)
+                for (var x = 0; x < source.Width; x++)
+                    Assert.Equal(source.Frames[frame][x, y].A, result.Frames[frame][x, y].A);
+    }
+
+    [Theory]
+    [InlineData(95)]
+    [InlineData(100)]
+    public void Encode_IndexedInputDoesNotRequantizeAtHighQuality(int quality)
+    {
+        using var source = CreateGradient(64, 64);
+        using var indexed = new MemoryStream();
+        source.Save(indexed, new PngEncoder { ColorType = PngColorType.Palette });
+        using var input = Image.Load<Rgba32>(indexed.ToArray());
+        // A resize/edit can introduce new colours while retaining source palette metadata.
+        for (var x = 0; x < input.Width; x++)
+            input[x, 0] = new Rgba32((byte)(x * 3), (byte)(x * 2), (byte)x, (byte)(x * 4));
+        using var result = Image.Load<Rgba32>(Encode(input, new EncodeRequest(quality, true)));
+        for (var y = 0; y < input.Height; y++)
+            for (var x = 0; x < input.Width; x++)
+                Assert.Equal(input[x, y], result[x, y]);
     }
 
     /// <summary>
@@ -217,7 +323,8 @@ public sealed class PngCompressorTests : IDisposable
                     seed ^= seed >> 13;
                     seed = unchecked(seed * 2654435761);
 
-                    row[x] = new Rgba32((byte)seed, (byte)(seed >> 8), (byte)(seed >> 16), byte.MaxValue);
+                    row[x] = new Rgba32((byte)(120 + (seed & 15)),
+                        (byte)(60 + ((seed >> 8) & 15)), (byte)(30 + ((seed >> 16) & 15)), byte.MaxValue);
                 }
             }
         });

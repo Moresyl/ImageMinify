@@ -1,3 +1,4 @@
+using ImageMinify.Helpers;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Bmp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -24,12 +25,14 @@ public sealed class BmpPassthroughEncoder : IFormatEncoder
 
     public void Encode(Image<Rgba32> image, Stream output, EncodeRequest request)
     {
-        image.Save(output, new BmpEncoder
+        request.CancellationToken.ThrowIfCancellationRequested();
+        var transparent = PixelInspector.HasTransparency(image);
+        EncodingMetadata.Encode(image, output, new BmpEncoder
         {
-            BitsPerPixel = BmpBitsPerPixel.Pixel24,
-            SupportTransparency = false,
+            BitsPerPixel = transparent ? BmpBitsPerPixel.Pixel32 : BmpBitsPerPixel.Pixel24,
+            SupportTransparency = transparent,
             SkipMetadata = request.StripMetadata,
-        });
+        }, request.StripMetadata, request.CancellationToken);
     }
 
     public void PostProcess(string filePath, bool stripMetadata)

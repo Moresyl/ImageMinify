@@ -52,42 +52,10 @@ public sealed class JpegCompressor : IFormatEncoder
         {
             Quality = Math.Clamp(request.Quality, 1, 100),
             Interleaved = true,
-            SkipMetadata = request.StripMetadata,
+            SkipMetadata = false,
         };
 
-        if (!request.StripMetadata)
-        {
-            image.Save(output, encoder);
-            return;
-        }
-
-        // ImageSharp's JPEG encoder writes the EXIF profile even with SkipMetadata set, so "strip
-        // metadata" has to be enforced here as well. The profiles are lifted off for the duration of
-        // the write and put straight back: the caller owns this image and encodes it again during a
-        // target-size search, so clearing them outright would silently change what the run was asked
-        // to keep. Getting this wrong writes GPS coordinates into a file the user asked to be clean.
-        var metadata = image.Metadata;
-        var exif = metadata.ExifProfile;
-        var iptc = metadata.IptcProfile;
-        var xmp = metadata.XmpProfile;
-        var icc = metadata.IccProfile;
-
-        metadata.ExifProfile = null;
-        metadata.IptcProfile = null;
-        metadata.XmpProfile = null;
-        metadata.IccProfile = null;
-
-        try
-        {
-            image.Save(output, encoder);
-        }
-        finally
-        {
-            metadata.ExifProfile = exif;
-            metadata.IptcProfile = iptc;
-            metadata.XmpProfile = xmp;
-            metadata.IccProfile = icc;
-        }
+        EncodingMetadata.Encode(image, output, encoder, request.StripMetadata, request.CancellationToken);
     }
 
     /// <summary>
@@ -123,7 +91,8 @@ public sealed class JpegCompressor : IFormatEncoder
             startInfo.ArgumentList.Add("-optimize");
             startInfo.ArgumentList.Add("-progressive");
             startInfo.ArgumentList.Add("-copy");
-            startInfo.ArgumentList.Add(stripMetadata ? "none" : "all");
+            // Encode has already removed personal profiles. Keep its display ICC profile.
+            startInfo.ArgumentList.Add("all");
             startInfo.ArgumentList.Add("-outfile");
             startInfo.ArgumentList.Add(tempPath);
             startInfo.ArgumentList.Add(filePath);
@@ -133,6 +102,9 @@ public sealed class JpegCompressor : IFormatEncoder
             {
                 return;
             }
+
+            _ = process.StandardOutput.ReadToEndAsync();
+            _ = process.StandardError.ReadToEndAsync();
 
             if (!process.WaitForExit(15000))
             {

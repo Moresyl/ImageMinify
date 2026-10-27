@@ -57,7 +57,7 @@ public sealed record CompressionOptions
     public int ScaleValue { get; init; } = 1920;
 
     /// <summary>
-    /// Drop EXIF, IPTC, XMP and the colour profile. Worth a few kilobytes on a phone photo, and it
+    /// Drop EXIF, IPTC and XMP, retaining the display colour profile. This
     /// is also what removes the GPS coordinates before an image goes anywhere public.
     /// </summary>
     public bool StripMetadata { get; init; }

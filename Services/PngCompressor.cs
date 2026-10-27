@@ -10,8 +10,7 @@ namespace ImageMinify.Services;
 public sealed class PngCompressor : IFormatEncoder
 {
     /// <summary>
-    /// At and above this quality the palette is abandoned for true colour. Below it, quantisation is
-    /// where essentially all of the saving comes from.
+    /// At and above this quality every accepted candidate must preserve the exact RGBA samples.
     /// </summary>
     private const int LosslessThreshold = 95;
 
@@ -45,35 +44,120 @@ public sealed class PngCompressor : IFormatEncoder
     /// PNG. Quantisation is the only real lever the format has — 24-bit colour down to a 256-entry
     /// palette, which is where the 60–70% savings on screenshots and flat artwork come from — but it
     /// is lossy, and a user who asks for maximum quality is asking for the pixels back exactly.
-    /// Above the threshold the palette step is skipped entirely and the file stays bit-identical to
-    /// the source, with only zlib and oxipng working on it.
+    /// Above the threshold only an exact source-colour palette may compete with true colour.
     /// </remarks>
     public void Encode(Image<Rgba32> image, Stream output, EncodeRequest request)
     {
+        request.CancellationToken.ThrowIfCancellationRequested();
         var quality = Math.Clamp(request.Quality, 1, 100);
+        // Keep alpha for animations even when the first frame happens to be opaque.
+        var hasTransparency = image.Frames.Count > 1 || PixelInspector.HasTransparency(image);
 
-        // A probe during the target-size search uses the cheaper zlib level. It is never larger than
-        // BestCompression at the same palette, so a probe that fits the target still fits once the
-        // real encode runs.
+        // Probes use cheaper deflate; the target-size search checks the final encoded size again.
         var compressionLevel = request.Fast
             ? PngCompressionLevel.DefaultCompression
             : PngCompressionLevel.BestCompression;
 
-        var encoder = quality >= LosslessThreshold
-            ? new PngEncoder
+        // Always measure the lossless candidate: smooth gradients can compress better
+        // as true colour than as a palette, even at a lower requested quality.
+        using var exact = new MemoryStream();
+        Write(exact, palette: false);
+        if (quality >= LosslessThreshold)
+        {
+            var exactQuantizer = PngLosslessPalette.Create(image);
+            if (exactQuantizer is not null)
             {
-                CompressionLevel = compressionLevel,
-                SkipMetadata = request.StripMetadata,
+                using var indexed = new MemoryStream();
+                Write(indexed, palette: true, exactQuantizer);
+                if (indexed.Length < exact.Length)
+                {
+                    indexed.Position = 0;
+                    using var decoded = Image.Load<Rgba32>(indexed);
+                    if (PngLosslessPalette.Matches(image, decoded))
+                    {
+                        indexed.WriteTo(output);
+                        return;
+                    }
+                }
             }
-            : new PngEncoder
+            exact.WriteTo(output);
+            return;
+        }
+
+        using var palette = new MemoryStream();
+        Write(palette, palette: true);
+        if (palette.Length < exact.Length)
+        {
+            palette.Position = 0;
+            using var decoded = Image.Load<Rgba32>(palette);
+            if (PngQuality.Accepts(image, decoded, quality))
+            {
+                palette.WriteTo(output);
+                return;
+            }
+        }
+
+        // Octree can miss small saturated details, especially on screenshots.
+        // Before falling back to true colour, try a full Wu palette without
+        // dithering; the same pixel, alpha and local quality checks still apply.
+        if (!request.Fast)
+        {
+            using var alternative = new MemoryStream();
+            Write(alternative, palette: true, new WuQuantizer(new QuantizerOptions
+            {
+                MaxColors = 256,
+                Dither = null,
+            }));
+            if (alternative.Length < exact.Length)
+            {
+                alternative.Position = 0;
+                using var decoded = Image.Load<Rgba32>(alternative);
+                if (PngQuality.Accepts(image, decoded, quality))
+                {
+                    alternative.WriteTo(output);
+                    return;
+                }
+            }
+        }
+
+        if (!request.Fast)
+        {
+            using var rounded = PngRgbCandidate.Create(image, quality, request.CancellationToken);
+            using var candidate = new MemoryStream();
+            Write(candidate, palette: false, source: rounded);
+            if (candidate.Length < exact.Length)
+            {
+                candidate.Position = 0;
+                using var decoded = Image.Load<Rgba32>(candidate);
+                if (PngQuality.Accepts(image, decoded, quality))
+                {
+                    candidate.WriteTo(output);
+                    return;
+                }
+            }
+        }
+
+        exact.WriteTo(output);
+
+        void Write(Stream destination, bool palette, IQuantizer? exactQuantizer = null, Image<Rgba32>? source = null)
+        {
+            request.CancellationToken.ThrowIfCancellationRequested();
+            source ??= image;
+            var encoder = new PngEncoder
             {
                 CompressionLevel = compressionLevel,
-                ColorType = PngColorType.Palette,
-                Quantizer = CreateQuantizer(image, quality),
-                SkipMetadata = request.StripMetadata,
+                ColorType = palette ? PngColorType.Palette
+                    : hasTransparency ? PngColorType.RgbWithAlpha : PngColorType.Rgb,
+                BitDepth = PngBitDepth.Bit8,
+                Quantizer = palette ? exactQuantizer ?? CreateQuantizer(image, quality, hasTransparency) : null,
+                TransparentColorMode = PngTransparentColorMode.Preserve,
+                SkipMetadata = false,
+                ChunkFilter = request.StripMetadata
+                    ? PngChunkFilter.ExcludeExifChunk | PngChunkFilter.ExcludeTextChunks
+                    : PngChunkFilter.None,
             };
-
-        image.Save(output, encoder);
+            EncodingMetadata.Encode(source, destination, encoder, request.StripMetadata, request.CancellationToken);
+        }
     }
 
     /// <summary>
@@ -101,14 +185,8 @@ public sealed class PngCompressor : IFormatEncoder
             startInfo.ArgumentList.Add("-o");
             startInfo.ArgumentList.Add("4");
 
-            // oxipng defaults to keeping chunks. Only strip when the run asked to — the previous
-            // behaviour was an unconditional "--strip all", which quietly discarded the metadata of
-            // a user who had explicitly chosen to keep it.
-            if (stripMetadata)
-            {
-                startInfo.ArgumentList.Add("--strip");
-                startInfo.ArgumentList.Add("all");
-            }
+            // Personal metadata was removed during Encode. Preserve colour and display
+            // chunks here; --strip all would change the appearance of unchanged pixels.
 
             // oxipng only ever writes the file back if its result is smaller, so there is no
             // size check to do here.
@@ -119,6 +197,10 @@ public sealed class PngCompressor : IFormatEncoder
             {
                 return;
             }
+
+            // Drain both redirected pipes so a verbose tool cannot block on a full pipe.
+            _ = process.StandardOutput.ReadToEndAsync();
+            _ = process.StandardError.ReadToEndAsync();
 
             if (!process.WaitForExit(60000))
             {
@@ -138,7 +220,7 @@ public sealed class PngCompressor : IFormatEncoder
         }
     }
 
-    private IQuantizer CreateQuantizer(Image<Rgba32> image, int quality)
+    private IQuantizer CreateQuantizer(Image<Rgba32> image, int quality, bool hasTransparency)
     {
         if (_imagequantNativeQuantizer.TryCreateQuantizer(image, quality, out var quantizer) && quantizer is not null)
         {
@@ -157,7 +239,7 @@ public sealed class PngCompressor : IFormatEncoder
         // and on exactly the kind of PNG people compress. Wu quantises over all four channels, so it
         // is the one that gets used whenever there is alpha to lose. Octree keeps the images it is
         // better at: flat artwork and screenshots, which have no transparency to begin with.
-        return PixelInspector.HasTransparency(image)
+        return hasTransparency
             ? new WuQuantizer(options)
             : new OctreeQuantizer(options);
     }
