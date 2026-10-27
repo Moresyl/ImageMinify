@@ -46,8 +46,7 @@ public sealed class PngCompressorTests : IDisposable
     }
 
     /// <summary>
-    /// A user who asks for maximum quality is asking for the pixels back exactly, so the palette step
-    /// is skipped entirely and only zlib works on the file.
+    /// Maximum quality preserves all pixels, whether true colour or an exact palette wins.
     /// </summary>
     [Fact]
     public void Encode_IsLosslessAtTheTopOfTheRange()
@@ -75,6 +74,47 @@ public sealed class PngCompressorTests : IDisposable
         for (var y = 0; y < image.Height; y++)
             for (var x = 0; x < image.Width; x++)
                 Assert.Equal(image[x, y], decoded[x, y]);
+    }
+
+    [Theory]
+    [InlineData(95)]
+    [InlineData(100)]
+    public void Encode_LowColorImageUsesSmallerPixelExactPalette(int quality)
+    {
+        using var source = new Image<Rgba32>(128, 128);
+        var random = new Random(20261027);
+        Rgba32[] colors = [new(12, 34, 56), new(200, 30, 100), new(40, 220, 70), new(240, 180, 90)];
+        for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
+                source[x, y] = colors[random.Next(colors.Length)];
+        using var trueColor = new MemoryStream();
+        source.Save(trueColor, new PngEncoder
+        {
+            ColorType = PngColorType.Rgb,
+            BitDepth = PngBitDepth.Bit8,
+            CompressionLevel = PngCompressionLevel.BestCompression,
+        });
+        var encoded = Encode(source, new EncodeRequest(quality, true));
+        Assert.Equal((byte)PngColorType.Palette, encoded[25]);
+        Assert.True(encoded.Length < trueColor.Length);
+        using var decoded = Image.Load<Rgba32>(encoded);
+        for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
+                Assert.Equal(source[x, y], decoded[x, y]);
+    }
+
+    [Fact]
+    public void Encode_ExactPaletteDoesNotDiscardTransparentHiddenColors()
+    {
+        using var source = new Image<Rgba32>(64, 64);
+        Rgba32[] colors = [new(12, 34, 56, 0), new(200, 30, 100, 0), new(40, 220, 70, 127)];
+        for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
+                source[x, y] = colors[(x + y) % colors.Length];
+        using var decoded = Image.Load<Rgba32>(Encode(source, new EncodeRequest(100, true)));
+        for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
+                Assert.Equal(source[x, y], decoded[x, y]);
     }
 
     [Theory]

@@ -10,8 +10,7 @@ namespace ImageMinify.Services;
 public sealed class PngCompressor : IFormatEncoder
 {
     /// <summary>
-    /// At and above this quality the palette is abandoned for true colour. Below it, quantisation is
-    /// where essentially all of the saving comes from.
+    /// At and above this quality every accepted candidate must preserve the exact RGBA samples.
     /// </summary>
     private const int LosslessThreshold = 95;
 
@@ -45,7 +44,7 @@ public sealed class PngCompressor : IFormatEncoder
     /// PNG. Quantisation is the only real lever the format has — 24-bit colour down to a 256-entry
     /// palette, which is where the 60–70% savings on screenshots and flat artwork come from — but it
     /// is lossy, and a user who asks for maximum quality is asking for the pixels back exactly.
-    /// Above the threshold the palette step is skipped and the decoded RGBA pixels are preserved.
+    /// Above the threshold only an exact source-colour palette may compete with true colour.
     /// </remarks>
     public void Encode(Image<Rgba32> image, Stream output, EncodeRequest request)
     {
@@ -64,6 +63,22 @@ public sealed class PngCompressor : IFormatEncoder
         Write(exact, palette: false);
         if (quality >= LosslessThreshold)
         {
+            var exactQuantizer = PngLosslessPalette.Create(image);
+            if (exactQuantizer is not null)
+            {
+                using var indexed = new MemoryStream();
+                Write(indexed, palette: true, exactQuantizer);
+                if (indexed.Length < exact.Length)
+                {
+                    indexed.Position = 0;
+                    using var decoded = Image.Load<Rgba32>(indexed);
+                    if (PngLosslessPalette.Matches(image, decoded))
+                    {
+                        indexed.WriteTo(output);
+                        return;
+                    }
+                }
+            }
             exact.WriteTo(output);
             return;
         }
@@ -83,7 +98,7 @@ public sealed class PngCompressor : IFormatEncoder
 
         exact.WriteTo(output);
 
-        void Write(Stream destination, bool palette)
+        void Write(Stream destination, bool palette, IQuantizer? exactQuantizer = null)
         {
             var encoder = new PngEncoder
             {
@@ -91,7 +106,7 @@ public sealed class PngCompressor : IFormatEncoder
                 ColorType = palette ? PngColorType.Palette
                     : hasTransparency ? PngColorType.RgbWithAlpha : PngColorType.Rgb,
                 BitDepth = PngBitDepth.Bit8,
-                Quantizer = palette ? CreateQuantizer(image, quality, hasTransparency) : null,
+                Quantizer = palette ? exactQuantizer ?? CreateQuantizer(image, quality, hasTransparency) : null,
                 TransparentColorMode = PngTransparentColorMode.Preserve,
                 SkipMetadata = false,
                 ChunkFilter = request.StripMetadata
