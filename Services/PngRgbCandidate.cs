@@ -6,30 +6,40 @@ namespace ImageMinify.Services;
 /// <summary>A bounded true-colour candidate for images that cannot fit a useful 256-colour palette.</summary>
 internal static class PngRgbCandidate
 {
-    public static Image<Rgba32> Create(Image<Rgba32> source, int quality)
+    public static Image<Rgba32> Create(Image<Rgba32> source, int quality, CancellationToken cancellationToken = default)
     {
-        var candidate = source.Clone();
+        cancellationToken.ThrowIfCancellationRequested();
         var step = quality >= 85 ? 4 : 8;
-        foreach (var frame in candidate.Frames)
+        var candidate = source.Clone();
+        try
         {
-            frame.ProcessPixelRows(rows =>
+            foreach (var frame in candidate.Frames)
             {
-                for (var y = 0; y < rows.Height; y++)
+                frame.ProcessPixelRows(rows =>
                 {
-                    var row = rows.GetRowSpan(y);
-                    for (var x = 0; x < row.Length; x++)
+                    for (var y = 0; y < rows.Height; y++)
                     {
-                        ref var pixel = ref row[x];
-                        // Preserve both Alpha and the otherwise invisible source RGB.
-                        if (pixel.A == 0) continue;
-                        pixel.R = Round(pixel.R);
-                        pixel.G = Round(pixel.G);
-                        pixel.B = Round(pixel.B);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var row = rows.GetRowSpan(y);
+                        for (var x = 0; x < row.Length; x++)
+                        {
+                            ref var pixel = ref row[x];
+                            // Preserve both Alpha and the otherwise invisible source RGB.
+                            if (pixel.A == 0) continue;
+                            pixel.R = Round(pixel.R);
+                            pixel.G = Round(pixel.G);
+                            pixel.B = Round(pixel.B);
+                        }
                     }
-                }
-            });
+                });
+            }
+            return candidate;
         }
-        return candidate;
+        catch
+        {
+            candidate.Dispose();
+            throw;
+        }
 
         byte Round(byte value) => (byte)Math.Min(255, (value + step / 2) / step * step);
     }

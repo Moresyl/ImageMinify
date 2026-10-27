@@ -6,6 +6,20 @@ namespace ImageMinify.Tests;
 
 public sealed class PngRgbCandidateTests
 {
+    [Fact]
+    public void CanceledRequest_DoesNotEncodeOrModifySource()
+    {
+        using var source = new Image<Rgba32>(16, 16, new Rgba32(123, 43, 91, 127));
+        using var output = new MemoryStream();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Assert.Throws<OperationCanceledException>(() => PngRgbCandidate.Create(source, 82, cancellation.Token));
+        Assert.Throws<OperationCanceledException>(() => new PngCompressor().Encode(source, output,
+            new EncodeRequest(82, true) { CancellationToken = cancellation.Token }));
+        Assert.Equal(0, output.Length);
+        Assert.Equal(new Rgba32(123, 43, 91, 127), source[0, 0]);
+    }
+
     [Theory]
     [InlineData(82)]
     [InlineData(94)]

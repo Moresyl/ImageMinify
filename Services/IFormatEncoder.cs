@@ -16,7 +16,10 @@ namespace ImageMinify.Services;
 /// The search must check the final encoded size before reporting that the target was met.
 /// </para>
 /// </param>
-public readonly record struct EncodeRequest(int Quality, bool StripMetadata, bool Fast = false);
+public readonly record struct EncodeRequest(int Quality, bool StripMetadata, bool Fast = false)
+{
+    public CancellationToken CancellationToken { get; init; }
+}
 
 /// <summary>
 /// What the pipeline needs from a single output format. Implemented by the three real encoders and

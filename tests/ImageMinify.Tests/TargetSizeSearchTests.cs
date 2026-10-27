@@ -7,6 +7,25 @@ namespace ImageMinify.Tests;
 
 public sealed class TargetSizeSearchTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void CancellationDuringEncode_StopsSearchWithoutReturningPayload(bool duringProbe)
+    {
+        using var image = new Image<Rgba32>(1, 1);
+        using var cancellation = new CancellationTokenSource();
+        var encoder = new ProbeEncoder(request =>
+        {
+            Assert.Equal(cancellation.Token, request.CancellationToken);
+            if (request.Fast == duringProbe) cancellation.Cancel();
+            return 400;
+        });
+        Assert.Throws<OperationCanceledException>(() => ImageCompressor.SearchForTargetSize(encoder, image,
+            new CompressionOptions { TargetSizeBytes = 500 }, cancellation.Token));
+        if (duringProbe) Assert.Single(encoder.Requests);
+        else Assert.False(encoder.Requests.Last().Fast);
+    }
+
     private sealed class ProbeEncoder(Func<EncodeRequest, int> size) : IFormatEncoder
     {
         public List<EncodeRequest> Requests { get; } = [];

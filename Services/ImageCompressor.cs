@@ -308,7 +308,7 @@ public sealed class ImageCompressor : IImageCompressor
     {
         if (options.TargetSizeBytes <= 0 || !encoder.SupportsQuality)
         {
-            var payload = EncodeToArray(encoder, surface, new EncodeRequest(options.Quality, options.StripMetadata));
+            var payload = EncodeToArray(encoder, surface, new EncodeRequest(options.Quality, options.StripMetadata) { CancellationToken = ct });
             return (payload, options.Quality, true);
         }
 
@@ -340,7 +340,7 @@ public sealed class ImageCompressor : IImageCompressor
             ct.ThrowIfCancellationRequested();
 
             var mid = (low + high) / 2;
-            var probe = EncodeToArray(encoder, surface, new EncodeRequest(mid, options.StripMetadata, Fast: true));
+            var probe = EncodeToArray(encoder, surface, new EncodeRequest(mid, options.StripMetadata, Fast: true) { CancellationToken = ct });
 
             if (probe.Length <= target)
             {
@@ -359,11 +359,11 @@ public sealed class ImageCompressor : IImageCompressor
         {
             // No fast probe fit. Full-effort encoding at the quality floor can still
             // meet the target, so determine success from its actual bytes.
-            var floor = EncodeToArray(encoder, surface, new EncodeRequest(MinimumSearchQuality, options.StripMetadata));
+            var floor = EncodeToArray(encoder, surface, new EncodeRequest(MinimumSearchQuality, options.StripMetadata) { CancellationToken = ct });
             return (floor, MinimumSearchQuality, floor.Length <= target);
         }
 
-        var payload = EncodeToArray(encoder, surface, new EncodeRequest(bestQuality, options.StripMetadata));
+        var payload = EncodeToArray(encoder, surface, new EncodeRequest(bestQuality, options.StripMetadata) { CancellationToken = ct });
         // Both encodes use the same quality and fidelity checks. Higher effort is
         // not a guarantee of fewer bytes; retain the already valid smaller result.
         return (payload.Length <= bestProbe.Length ? payload : bestProbe, bestQuality, true);
@@ -371,8 +371,10 @@ public sealed class ImageCompressor : IImageCompressor
 
     private static byte[] EncodeToArray(IFormatEncoder encoder, Image<Rgba32> image, EncodeRequest request)
     {
+        request.CancellationToken.ThrowIfCancellationRequested();
         using var buffer = new MemoryStream();
         encoder.Encode(image, buffer, request);
+        request.CancellationToken.ThrowIfCancellationRequested();
         return buffer.ToArray();
     }
 

@@ -48,6 +48,7 @@ public sealed class PngCompressor : IFormatEncoder
     /// </remarks>
     public void Encode(Image<Rgba32> image, Stream output, EncodeRequest request)
     {
+        request.CancellationToken.ThrowIfCancellationRequested();
         var quality = Math.Clamp(request.Quality, 1, 100);
         // Keep alpha for animations even when the first frame happens to be opaque.
         var hasTransparency = image.Frames.Count > 1 || PixelInspector.HasTransparency(image);
@@ -121,7 +122,7 @@ public sealed class PngCompressor : IFormatEncoder
 
         if (!request.Fast)
         {
-            using var rounded = PngRgbCandidate.Create(image, quality);
+            using var rounded = PngRgbCandidate.Create(image, quality, request.CancellationToken);
             using var candidate = new MemoryStream();
             Write(candidate, palette: false, source: rounded);
             if (candidate.Length < exact.Length)
@@ -140,6 +141,7 @@ public sealed class PngCompressor : IFormatEncoder
 
         void Write(Stream destination, bool palette, IQuantizer? exactQuantizer = null, Image<Rgba32>? source = null)
         {
+            request.CancellationToken.ThrowIfCancellationRequested();
             source ??= image;
             var encoder = new PngEncoder
             {
@@ -155,6 +157,7 @@ public sealed class PngCompressor : IFormatEncoder
                     : PngChunkFilter.None,
             };
             EncodingMetadata.Write(source, request.StripMetadata, () => source.Save(destination, encoder));
+            request.CancellationToken.ThrowIfCancellationRequested();
         }
     }
 
