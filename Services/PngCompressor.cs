@@ -156,8 +156,7 @@ public sealed class PngCompressor : IFormatEncoder
                     ? PngChunkFilter.ExcludeExifChunk | PngChunkFilter.ExcludeTextChunks
                     : PngChunkFilter.None,
             };
-            EncodingMetadata.Write(source, request.StripMetadata, () => source.Save(destination, encoder));
-            request.CancellationToken.ThrowIfCancellationRequested();
+            EncodingMetadata.Encode(source, destination, encoder, request.StripMetadata, request.CancellationToken);
         }
     }
 

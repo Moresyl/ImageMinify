@@ -25,7 +25,7 @@ internal static class PngHighDepthAnimation
             using var frame = image.Frames.CloneFrame(index);
             using var encoded = new MemoryStream();
             // All frames must share the IHDR layout, including opaque frames.
-            EncodingMetadata.Write(frame, stripMetadata, () => frame.Save(encoded, new PngEncoder
+            EncodingMetadata.Encode(frame, encoded, new PngEncoder
             {
                 BitDepth = PngBitDepth.Bit16,
                 ColorType = PngColorType.RgbWithAlpha,
@@ -35,7 +35,7 @@ internal static class PngHighDepthAnimation
                 ChunkFilter = stripMetadata
                     ? PngChunkFilter.ExcludeExifChunk | PngChunkFilter.ExcludeTextChunks
                     : PngChunkFilter.None,
-            }));
+            }, stripMetadata, cancellationToken);
             var png = encoded.GetBuffer().AsSpan(0, checked((int)encoded.Length));
             if (index == 0) output.Write(png[..8]);
             var wroteControl = false;

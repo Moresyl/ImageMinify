@@ -20,7 +20,7 @@ public sealed class WebpCompressor : IFormatEncoder
         var quality = Math.Clamp(request.Quality, 1, 100);
         var lossless = quality >= LosslessThreshold;
 
-        EncodingMetadata.Write(image, request.StripMetadata, () => image.Save(output, new WebpEncoder
+        EncodingMetadata.Encode(image, output, new WebpEncoder
         {
             Quality = quality,
             FileFormat = lossless ? WebpFileFormatType.Lossless : WebpFileFormatType.Lossy,
@@ -31,7 +31,7 @@ public sealed class WebpCompressor : IFormatEncoder
             Method = request.Fast ? WebpEncodingMethod.Level2 : WebpEncodingMethod.BestQuality,
             SkipMetadata = false,
             TransparentColorMode = WebpTransparentColorMode.Preserve,
-        }));
+        }, request.StripMetadata, request.CancellationToken);
     }
 
     /// <summary>

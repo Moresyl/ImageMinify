@@ -55,7 +55,7 @@ public sealed class JpegCompressor : IFormatEncoder
             SkipMetadata = false,
         };
 
-        EncodingMetadata.Write(image, request.StripMetadata, () => image.Save(output, encoder));
+        EncodingMetadata.Encode(image, output, encoder, request.StripMetadata, request.CancellationToken);
     }
 
     /// <summary>

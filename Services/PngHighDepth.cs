@@ -35,8 +35,7 @@ internal static class PngHighDepth
                 ? PngChunkFilter.ExcludeExifChunk | PngChunkFilter.ExcludeTextChunks
                 : PngChunkFilter.None,
         };
-        EncodingMetadata.Write(image, stripMetadata, () => image.Save(buffer, encoder));
-        cancellationToken.ThrowIfCancellationRequested();
+        EncodingMetadata.Encode(image, buffer, encoder, stripMetadata, cancellationToken);
         return buffer.ToArray();
     }
 }

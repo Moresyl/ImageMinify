@@ -25,13 +25,14 @@ public sealed class BmpPassthroughEncoder : IFormatEncoder
 
     public void Encode(Image<Rgba32> image, Stream output, EncodeRequest request)
     {
+        request.CancellationToken.ThrowIfCancellationRequested();
         var transparent = PixelInspector.HasTransparency(image);
-        image.Save(output, new BmpEncoder
+        EncodingMetadata.Encode(image, output, new BmpEncoder
         {
             BitsPerPixel = transparent ? BmpBitsPerPixel.Pixel32 : BmpBitsPerPixel.Pixel24,
             SupportTransparency = transparent,
             SkipMetadata = request.StripMetadata,
-        });
+        }, request.StripMetadata, request.CancellationToken);
     }
 
     public void PostProcess(string filePath, bool stripMetadata)
