@@ -192,7 +192,9 @@ public sealed class ImageCompressor : IImageCompressor
 
             // Image.Load reads the file to completion and closes the handle, so the source is not
             // locked afterwards — which is what lets Overwrite write back over this same path.
-            using var image = Image.Load<Rgba32>(inputPath);
+            using Image image = PngHighDepth.RequiresPreservation(inputPath, outputExtension)
+                ? Image.Load<Rgba64>(inputPath)
+                : Image.Load<Rgba32>(inputPath);
 
             // Before anything measures or resizes the image: see ExifService.AutoOrient for why.
             _exifService.AutoOrient(image);
@@ -211,23 +213,27 @@ public sealed class ImageCompressor : IImageCompressor
                 _exifService.Reduce(image, inputPath);
             }
 
-            var surface = encoder.Prepare(image);
             byte[] payload;
             int qualityUsed;
             bool metTarget;
-
-            try
+            if (image is Image<Rgba64> highDepth)
             {
                 ct.ThrowIfCancellationRequested();
-                (payload, qualityUsed, metTarget) = Encode(encoder, surface, options, ct);
+                payload = PngHighDepth.Encode(highDepth, options.StripMetadata);
+                qualityUsed = 100;
+                metTarget = options.TargetSizeBytes <= 0 || payload.Length <= options.TargetSizeBytes;
             }
-            finally
+            else
             {
-                // Prepare returns the same instance when it had nothing to convert; disposing it
-                // here would tear down the image the using block above still owns.
-                if (!ReferenceEquals(surface, image))
+                var surface = encoder.Prepare((Image<Rgba32>)image);
+                try
                 {
-                    surface.Dispose();
+                    ct.ThrowIfCancellationRequested();
+                    (payload, qualityUsed, metTarget) = Encode(encoder, surface, options, ct);
+                }
+                finally
+                {
+                    if (!ReferenceEquals(surface, image)) surface.Dispose();
                 }
             }
 
@@ -390,7 +396,7 @@ public sealed class ImageCompressor : IImageCompressor
             && string.Equals(inputExtension, outputExtension, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void ApplyScale(Image<Rgba32> image, CompressionOptions options)
+    private static void ApplyScale(Image image, CompressionOptions options)
     {
         var (width, height) = options.ScaleMode switch
         {
